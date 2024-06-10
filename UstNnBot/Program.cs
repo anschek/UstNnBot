@@ -7,12 +7,10 @@ namespace UstNnBot
     {
         static void Main(string[] args)
         {
-            //UstBot ustBot = new UstBot("7439368344:AAGVuhh5iEzTQ2YXgQy6i3_VzwtfT30YVYc");
-            //Console.WriteLine("Press any key to exit");
-            //Console.ReadKey();
+            UstBot ustBot = new UstBot(File.ReadAllText("bot_token.txt"));
+            Console.WriteLine("Press any key to exit");
+            Console.ReadKey();
 
-
-            List<ComponentCalculation>? components = GET.View.ComponentCalculationsBy(5218);
         }
     }
 }
