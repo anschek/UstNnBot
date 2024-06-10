@@ -1,0 +1,8 @@
+{
+  "profiles": {
+    "UstNnBot": {
+      "commandName": "Project",
+      "nativeDebugging": false
+    }
+  }
+}
