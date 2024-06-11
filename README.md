@@ -1,5 +1,5 @@
 # UstNnBot
-Development of telegram bot in C# for "Yust-NN" as part of production practice 02 "Implementation of program units integration"
+Development of telegram bot in C# for "Ust-NN" as part of production practice 02 "Implementation of program units integration"
 ## Description of commits
 | Name     | Description                                          |
 | -------- | ---------------------------------------------------- |
