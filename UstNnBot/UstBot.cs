@@ -5,6 +5,7 @@ using DatabaseLibrary.Queries;
 using Telegram.Bot.Types.ReplyMarkups;
 using Telegram.Bot.Types.Enums;
 using System.ComponentModel;
+using DatabaseLibrary.Entities.Actions;
 
 namespace UstNnBot
 {
@@ -60,12 +61,19 @@ namespace UstNnBot
                 {
                     try
                     {
-                        string componentsWithUserProcurementId = GetComponentsNamesAndCounts(Convert.ToInt32(message.Text));
+                        int userProcurementId = Convert.ToInt32(message.Text);
+                        string componentsWithUserProcurementId = GetComponentsNamesAndCounts(userProcurementId);
                         if (componentsWithUserProcurementId == null) await client.SendTextMessageAsync(message.Chat.Id, "Компоненты тендера не найдены");
-                        else await client.SendTextMessageAsync(message.Chat.Id, componentsWithUserProcurementId, parseMode: ParseMode.Markdown);
+                        else 
+                        {
+                            string? techincalComments = GetTechnicalCommentByProcurement(userProcurementId);
+                            if (techincalComments != null) componentsWithUserProcurementId += $"\n*Комментарии*\n{techincalComments}";
+                            await client.SendTextMessageAsync(message.Chat.Id, componentsWithUserProcurementId, parseMode: ParseMode.Markdown);
+                        } 
                     }
-                    catch
+                    catch(Exception exception)
                     {
+                        Console.WriteLine($"{exception.Message} {exception.TargetSite}");
                         await client.SendTextMessageAsync(message.Chat.Id, "Ошибка валидации тендера");
                     }
                     _userStates.Remove(message.Chat.Id);
@@ -94,9 +102,9 @@ namespace UstNnBot
             throw new NotImplementedException();
         }
         //logic
-        static string? GetComponentsNamesAndCounts(int procurementId)
+        static string GetComponentsNamesAndCounts(int procurementId)
         {
-            IEnumerable<ComponentCalculation>? components = GET.View.ComponentCalculationsBy(procurementId);
+            IEnumerable<ComponentCalculation>? components = GET.View.ComponentCalculationsBy(procurementId).Where(component=>!(bool)component.IsDeleted);
             string result = "";
             IEnumerable<ComponentCalculation>? componentsHeader = components.Where(component => (bool)component.IsHeader);
             foreach (ComponentCalculation componentHeader in componentsHeader)
@@ -106,6 +114,11 @@ namespace UstNnBot
                     result += $"{component.ComponentNamePurchase}   {component.CountPurchase} шт.\n";
             }
             return result;
+        }
+        static string? GetTechnicalCommentByProcurement(int procurementId)
+        {
+            List<Comment>? comments = GET.View.CommentsBy(procurementId, isTechical: true);
+            return string.Join("\n", comments.Select(comment => comment.Text));
         }
     }
 }
