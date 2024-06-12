@@ -4,7 +4,6 @@ using DatabaseLibrary.Entities.ComponentCalculationProperties;
 using DatabaseLibrary.Queries;
 using Telegram.Bot.Types.ReplyMarkups;
 using Telegram.Bot.Types.Enums;
-using System.ComponentModel;
 using DatabaseLibrary.Entities.Actions;
 
 namespace UstNnBot
@@ -38,7 +37,7 @@ namespace UstNnBot
             {
                 new []
                 {
-                    InlineKeyboardButton.WithCallbackData(text: "Определить компоненты по Id тендера", callbackData: "startMenuGetComponents"),
+                    InlineKeyboardButton.WithCallbackData(text: "Определить компоненты по Id тендера", callbackData: "startMenu_GetComponents"),
                 }
             });
             await client.SendTextMessageAsync(
@@ -57,21 +56,21 @@ namespace UstNnBot
                 {
                     await ActionMenu(client, message, token);
                 }
-                else if(_userStates.ContainsKey(message.Chat.Id) && _userStates[message.Chat.Id]== "waitingForProcurementId")
+                else if (_userStates.ContainsKey(message.Chat.Id) && _userStates[message.Chat.Id] == "waitingForProcurementId")
                 {
                     try
                     {
                         int userProcurementId = Convert.ToInt32(message.Text);
-                        string componentsWithUserProcurementId = GetComponentsNamesAndCounts(userProcurementId);
-                        if (componentsWithUserProcurementId == null) await client.SendTextMessageAsync(message.Chat.Id, "Компоненты тендера не найдены");
-                        else 
+                        var components = GetComponentsWithHeaders(userProcurementId);
+                        if (components == null) await client.SendTextMessageAsync(message.Chat.Id, "Компоненты тендера не найдены");
+                        else
                         {
-                            string? techincalComments = GetTechnicalCommentByProcurement(userProcurementId);
-                            if (techincalComments != null) componentsWithUserProcurementId += $"\n*Комментарии*\n{techincalComments}";
-                            await client.SendTextMessageAsync(message.Chat.Id, componentsWithUserProcurementId, parseMode: ParseMode.Markdown);
-                        } 
+                            List<Comment>? comments = GetTechnicalComments(userProcurementId);
+                            string componentsMessage = ComponentsToString(components, comments);
+                            await client.SendTextMessageAsync(message.Chat.Id, componentsMessage, parseMode: ParseMode.Markdown);
+                        }
                     }
-                    catch(Exception exception)
+                    catch (Exception exception)
                     {
                         Console.WriteLine($"{exception.Message} {exception.TargetSite}");
                         await client.SendTextMessageAsync(message.Chat.Id, "Ошибка валидации тендера");
@@ -87,8 +86,9 @@ namespace UstNnBot
         }
         static async Task CallbackQuery(ITelegramBotClient client, CallbackQuery callbackQuery, CancellationToken token)
         {
-            if(callbackQuery.Data == "startMenuGetComponents") 
-            { 
+            Console.WriteLine($"user {callbackQuery.Message.Chat.Username} {callbackQuery.Message.Date.ToLocalTime()} | callback query: {callbackQuery.Data}");
+            if (callbackQuery.Data == "startMenu_GetComponents")
+            {
                 await client.SendTextMessageAsync(
                 chatId: callbackQuery.Message.Chat.Id,
                 text: "Введите id тедера:",
@@ -101,27 +101,32 @@ namespace UstNnBot
         {
             throw new NotImplementedException();
         }
+
         //logic
-        static string GetComponentsNamesAndCounts(int procurementId)
+
+        static Dictionary<ComponentCalculation, List<ComponentCalculation>>? GetComponentsWithHeaders(int procurementId)
         {
-            IEnumerable<ComponentCalculation>? components = GET.View.ComponentCalculationsBy(procurementId).Where(component=>!(bool)component.IsDeleted);
-            string result = "";
-            IEnumerable<ComponentCalculation>? componentsHeader = components.Where(component => (bool)component.IsHeader);
-            foreach (ComponentCalculation componentHeader in componentsHeader)
-            {
-                result += $"*{componentHeader.ComponentHeaderType.Kind}*\n";
-                foreach (ComponentCalculation component in components.Where(component => component.ParentName == componentHeader.Id))
-                    result += $"{component.ComponentNamePurchase}   {component.CountPurchase} шт.\n";
-            }
-            return result;
+            IEnumerable<ComponentCalculation>? components = GET.View.ComponentCalculationsBy(procurementId);
+            IEnumerable<ComponentCalculation?> componentsHeaders = components.Where(component => (bool)component.IsHeader);
+            return componentsHeaders.ToDictionary(
+                header => header,
+                header => components.Where(component => component.ParentName==header.Id && component.ComponentNamePurchase!=null).ToList()
+            );
         }
-        static string? GetTechnicalCommentByProcurement(int procurementId)
+        static List<Comment>? GetTechnicalComments(int procurementId) => GET.View.CommentsBy(procurementId, isTechical: true);
+
+        //other
+
+        static string ComponentsToString(Dictionary<ComponentCalculation, List<ComponentCalculation>> components, List<Comment>? comments)
         {
-            List<Comment>? comments = GET.View.CommentsBy(procurementId, isTechical: true);
-            return string.Join("\n", comments.Select(comment => comment.Text));
+            string result = "";
+            foreach(var header in components.Keys)
+            {
+                result += $"\n*{header.ComponentHeaderType.Kind}*\n" + string.Join("\n", components[header]
+                    .Select(component => $"{component.ComponentNamePurchase}    {component.CountPurchase} шт."));
+            }
+            if (comments != null && comments.Count()>0) result += $"\n\n*Комменатрии*\n{string.Join("\n", comments.Select(comment => comment.Text))}";
+            return result;
         }
     }
 }
-
-
-
