@@ -4,6 +4,7 @@ using DatabaseLibrary.Entities.ComponentCalculationProperties;
 using DatabaseLibrary.Queries;
 using Telegram.Bot.Types.ReplyMarkups;
 using Telegram.Bot.Types.Enums;
+using System.ComponentModel;
 
 namespace UstNnBot
 {
@@ -61,7 +62,7 @@ namespace UstNnBot
                     {
                         string componentsWithUserProcurementId = GetComponentsNamesAndCounts(Convert.ToInt32(message.Text));
                         if (componentsWithUserProcurementId == null) await client.SendTextMessageAsync(message.Chat.Id, "Компоненты тендера не найдены");
-                        else await client.SendTextMessageAsync(message.Chat.Id, componentsWithUserProcurementId);
+                        else await client.SendTextMessageAsync(message.Chat.Id, componentsWithUserProcurementId, parseMode: ParseMode.Markdown);
                     }
                     catch
                     {
@@ -95,11 +96,15 @@ namespace UstNnBot
         //logic
         static string? GetComponentsNamesAndCounts(int procurementId)
         {
-            IEnumerable<ComponentCalculation>? components = GET.View.ComponentCalculationsBy(procurementId)
-                .Where(component => component.ComponentNamePurchase != null && component.ComponentNamePurchase.Trim() != "");
+            IEnumerable<ComponentCalculation>? components = GET.View.ComponentCalculationsBy(procurementId);
             string result = "";
-            foreach (ComponentCalculation component in components)
-                result += $"{component.ComponentNamePurchase}   {component.CountPurchase} шт.\n";
+            IEnumerable<ComponentCalculation>? componentsHeader = components.Where(component => (bool)component.IsHeader);
+            foreach (ComponentCalculation componentHeader in componentsHeader)
+            {
+                result += $"*{componentHeader.ComponentHeaderType.Kind}*\n";
+                foreach (ComponentCalculation component in components.Where(component => component.ParentName == componentHeader.Id))
+                    result += $"{component.ComponentNamePurchase}   {component.CountPurchase} шт.\n";
+            }
             return result;
         }
     }
