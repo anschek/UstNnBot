@@ -6,7 +6,9 @@ using Telegram.Bot.Types.ReplyMarkups;
 using Telegram.Bot.Types.Enums;
 using DatabaseLibrary.Entities.Actions;
 using Microsoft.IdentityModel.Tokens;
+using System.Runtime.CompilerServices;
 
+[assembly: InternalsVisibleTo("UstNnBot.test")]
 namespace UstNnBot
 {
     internal class UstBot
@@ -105,7 +107,7 @@ namespace UstNnBot
 
         //logic
 
-        static Dictionary<ComponentCalculation, List<ComponentCalculation>>? GetComponentsWithHeaders(int procurementId)
+        internal static Dictionary<ComponentCalculation, List<ComponentCalculation>>? GetComponentsWithHeaders(int procurementId)
         {
             IEnumerable<ComponentCalculation>? components = GET.View.ComponentCalculationsBy(procurementId);
             IEnumerable<ComponentCalculation?> componentsHeaders = components.Where(component => (bool)component.IsHeader);

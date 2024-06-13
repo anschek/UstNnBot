@@ -20,4 +20,10 @@
     <ProjectReference Include="..\UstNnBot\UstNnBot.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Reference Include="DatabaseLibrary">
+      <HintPath>..\SolutionItems\DatabaseLibrary.dll</HintPath>
+    </Reference>
+  </ItemGroup>
+
 </Project>
