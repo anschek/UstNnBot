@@ -11,8 +11,8 @@ namespace UstNnBot
 {
     internal class UstBot
     {
-        private static ITelegramBotClient _botClient;
-        private static Dictionary<long, string> _userStates;//chat id and state
+        static ITelegramBotClient _botClient;
+        static Dictionary<long, string> _userStates;//chat id and state
         internal UstBot(string token)
         {
             _botClient = new TelegramBotClient(token);
@@ -32,7 +32,7 @@ namespace UstNnBot
             }
             return;
         }
-        private static async Task ActionMenu(ITelegramBotClient client, Message message, CancellationToken token)
+        static async Task ActionMenu(ITelegramBotClient client, Message message, CancellationToken token)
         {
             var inlineKeyboard = new InlineKeyboardMarkup(new[]
             {
@@ -48,7 +48,7 @@ namespace UstNnBot
                 cancellationToken: token);
             return;
         }
-        private static async Task SendMessage(ITelegramBotClient client, Message message, CancellationToken token)
+        static async Task SendMessage(ITelegramBotClient client, Message message, CancellationToken token)
         {
             if (message.Text != null)
             {
@@ -63,7 +63,7 @@ namespace UstNnBot
                     {
                         int userProcurementId = Convert.ToInt32(message.Text);
                         var components = GetComponentsWithHeaders(userProcurementId);
-                        if (components == null) await client.SendTextMessageAsync(message.Chat.Id, "Компоненты тендера не найдены");
+                        if (components.IsNullOrEmpty()) await client.SendTextMessageAsync(message.Chat.Id, "Компоненты тендера не найдены");
                         else
                         {
                             List<Comment>? comments = GetTechnicalComments(userProcurementId);
@@ -98,7 +98,7 @@ namespace UstNnBot
             }
             return;
         }
-        private static Task Error(ITelegramBotClient client, Exception exception, CancellationToken token)
+        static Task Error(ITelegramBotClient client, Exception exception, CancellationToken token)
         {
             throw new NotImplementedException();
         }
@@ -111,7 +111,7 @@ namespace UstNnBot
             IEnumerable<ComponentCalculation?> componentsHeaders = components.Where(component => (bool)component.IsHeader);
             return componentsHeaders.ToDictionary(
                 header => header,
-                header => components.Where(component => component.ParentName==header.Id && component.ComponentNamePurchase!=null).ToList()
+                header => components.Where(component => component.ParentName==header.Id && !component.ComponentNamePurchase.IsNullOrEmpty()).ToList()
             );
         }
         static List<Comment>? GetTechnicalComments(int procurementId) => GET.View.CommentsBy(procurementId, isTechical: true);
@@ -131,7 +131,7 @@ namespace UstNnBot
                         .Select(component => !component.AssemblyMap.IsNullOrEmpty() ? $"{component.ComponentNamePurchase} - {component.AssemblyMap}\n" : ""));                    
             }
             string resultText = "*Компоненты*" + componentsStr;
-            if (comments != null && comments.Count()>0) resultText += $"\n\n*Комменатрии*\n{string.Join("\n", comments.Select(comment => comment.Text))}";
+            if (!comments.IsNullOrEmpty()) resultText += $"\n\n*Комменатрии*\n{string.Join("\n", comments.Select(comment => comment.Text))}";
             if (assemblyMapsStr != "") resultText += $"\n\n*Карта сборки*\n" + assemblyMapsStr;
             return resultText;
         }
