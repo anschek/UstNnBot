@@ -116,7 +116,7 @@ namespace UstNnBot
                 header => components.Where(component => component.ParentName==header.Id && !component.ComponentNamePurchase.IsNullOrEmpty()).ToList()
             );
         }
-        static List<Comment>? GetTechnicalComments(int procurementId) => GET.View.CommentsBy(procurementId, isTechical: true);
+        internal static List<Comment>? GetTechnicalComments(int procurementId) => GET.View.CommentsBy(procurementId, isTechical: true);
 
         //other
 
