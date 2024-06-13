@@ -5,6 +5,7 @@ using DatabaseLibrary.Queries;
 using Telegram.Bot.Types.ReplyMarkups;
 using Telegram.Bot.Types.Enums;
 using DatabaseLibrary.Entities.Actions;
+using Microsoft.IdentityModel.Tokens;
 
 namespace UstNnBot
 {
@@ -119,14 +120,20 @@ namespace UstNnBot
 
         static string ComponentsToString(Dictionary<ComponentCalculation, List<ComponentCalculation>> components, List<Comment>? comments)
         {
-            string result = "";
+            string componentsStr = "";
+            string assemblyMapsStr = "";
             foreach(var header in components.Keys)
             {
-                result += $"\n*{header.ComponentHeaderType.Kind}*\n" + string.Join("\n", components[header]
+                componentsStr += $"\n•      {header.ComponentHeaderType.Kind}\n" + string.Join("\n", components[header]
                     .Select(component => $"{component.ComponentNamePurchase}    {component.CountPurchase} шт."));
+                if (components[header].Count(component => !component.AssemblyMap.IsNullOrEmpty()) > 0)
+                    assemblyMapsStr += $"•      {header.ComponentHeaderType.Kind}\n" + string.Join("", components[header]
+                        .Select(component => !component.AssemblyMap.IsNullOrEmpty() ? $"{component.ComponentNamePurchase} - {component.AssemblyMap}\n" : ""));                    
             }
-            if (comments != null && comments.Count()>0) result += $"\n\n*Комменатрии*\n{string.Join("\n", comments.Select(comment => comment.Text))}";
-            return result;
+            string resultText = "*Компоненты*" + componentsStr;
+            if (comments != null && comments.Count()>0) resultText += $"\n\n*Комменатрии*\n{string.Join("\n", comments.Select(comment => comment.Text))}";
+            if (assemblyMapsStr != "") resultText += $"\n\n*Карта сборки*\n" + assemblyMapsStr;
+            return resultText;
         }
     }
 }
