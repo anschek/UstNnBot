@@ -31,5 +31,22 @@ namespace UstNnBot.test
             var returnsDict = UstBot.GetComponentsWithHeaders(procurementId);
             Assert.AreEqual(0, returnsDict.Count());
         }
+        [TestMethod]
+        public void GetTechnicalComments_ExistingId_ReturnsListOfComments()
+        {
+            int procurementId = 5678;
+            var returnsList = UstBot.GetTechnicalComments(procurementId);
+            var expectedList = GET.View.CommentsBy(procurementId, isTechical: true);
+            foreach(var value in returnsList)
+                Assert.AreEqual(1, expectedList.Count(comment => comment.Id == value.Id));
+            Assert.AreEqual(expectedList.Count(), returnsList.Count);
+        }
+        [TestMethod]
+        public void GetTechnicalComments_NonExistentId_ReturnsEmptyList()
+        {
+            int procurementId = 1;
+            var returnsList = UstBot.GetComponentsWithHeaders(procurementId);
+            Assert.AreEqual(0, returnsList.Count());
+        }
     }
 }
