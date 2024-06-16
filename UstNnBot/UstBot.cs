@@ -7,6 +7,7 @@ using Telegram.Bot.Types.Enums;
 using DatabaseLibrary.Entities.Actions;
 using Microsoft.IdentityModel.Tokens;
 using System.Runtime.CompilerServices;
+using DatabaseLibrary.Entities.ProcurementProperties;
 
 [assembly: InternalsVisibleTo("UstNnBot.test")]
 namespace UstNnBot
@@ -166,9 +167,15 @@ namespace UstNnBot
         }
         internal static List<Comment>? GetTechnicalComments(int procurementId) => GET.View.CommentsBy(procurementId, isTechical: true);
         //[not tested]
-        internal static List<int>? GetGeneralProcurementIds() => GET.View.ProcurementsBy("Выигран 2ч", GET.KindOf.ProcurementState)!
-            .Where(procurement => GET.View.ComponentCalculationsBy(procurement.Id)!.All(component => component
-            .ComponentState!.Kind == "В резерве")).Select(procurement => procurement.Id).ToList();
+        internal static List<int>? GetGeneralProcurementIds() 
+            => GetProcurementIdsByComponentState(
+                GET.View.ProcurementsBy("Выигран 2ч", 
+                GET.KindOf.ProcurementState), "В резерве");
+        internal static List<int>? GetProcurementIdsByComponentState(List<Procurement>? procurements, string componentState) =>
+            (from procurement in procurements
+             where (from component in GET.View.ComponentCalculationsBy(procurement.Id)
+                    select component.ComponentState.Kind).All(state => state==componentState)
+             select procurement.Id).ToList();
         //[not tested]
         internal static List<(int, List<int>?)>? FilterProcurementsByPlanKind(List<int> procurementIds, bool OnlyNotAssigned = false, long? UserId = null)
         {
