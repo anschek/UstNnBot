@@ -171,15 +171,15 @@ namespace UstNnBot
              where StatesOfAllComponentsAreMatch(GET.View.ComponentCalculationsBy(procurement.Id), "В резерве")
              select procurement.Id).ToList();
         //[not tested]
-        internal static bool StatesOfAllComponentsAreMatch(List<ComponentCalculation> components, string componentState) =>
+        internal static bool StatesOfAllComponentsAreMatch(List<ComponentCalculation>? components, string componentState) =>
             components.All(component => component.ComponentState.Kind == componentState);
         //wrapper of FilterOneProcurement
         internal static List<(int, List<int>?)>? FilterProcurements(List<int> procurementIds)
-            => procurementIds.Select(procurementId => (procurementId, FilterOneProcurement(procurementId,
+            => procurementIds.Select(procurementId => (procurementId, FilterOneProcurement(
                 GET.View.ProcurementsEmployeesByProcurement(procurementId)
                 ))).ToList();
         //[not tested]
-        internal static List<int>? FilterOneProcurement(int procurementId, List<ProcurementsEmployee> procurementsEmployees, List<string>? allowedUser = null)
+        internal static List<int>? FilterOneProcurement(List<ProcurementsEmployee> procurementsEmployees, List<string>? allowedUser = null)
         => (from pe in procurementsEmployees
             where (allowedUser ?? AllowedUsers).Contains(pe.Employee.UserName)
             select pe.EmployeeId).ToList();

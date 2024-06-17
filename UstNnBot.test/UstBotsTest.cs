@@ -48,5 +48,85 @@ namespace UstNnBot.test
             var returnsList = UstBot.GetComponentsWithHeaders(procurementId);
             Assert.AreEqual(0, returnsList.Count());
         }
+        [TestMethod]
+        public void StatesOfAllComponentsAreMatch_AllStatesAreMatch_ReturnsTrue()
+        {
+
+        }
+        [TestMethod]
+        public void StatesOfAllComponentsAreMatch_SomeStatesAreNotMatch_ReturnsFalse()
+        {
+
+        }
+        [TestMethod]
+        public void StatesOfAllComponentsAreMatch_NoStateIsMatch_ReturnsFalse()
+        {
+
+        }
+        [TestMethod]
+        public void StatesOfAllComponentsAreMatch_ComponentStateIsNull_ReturnsFalse()
+        {
+
+        }
+        [TestMethod]
+        public void StatesOfAllComponentsAreMatch_ComponentsListInNull_ReturnsFalse()
+        {
+
+        }
+        [TestMethod]
+        public void FilterOneProcurement_SomeUsersAreAllowed_ReturnsUserIdsList()
+        {
+
+        }
+        [TestMethod]
+        public void FilterOneProcurement_NoUserIsAllowed_ReturnsEmptyList()
+        {
+
+        }
+        [TestMethod]
+        public void FilterOneProcurement_ProcurementsEmployeesListIsNull_ReturnsNull()
+        {
+
+        }
+        [TestMethod]
+        public void FilterOneProcurement_ProcurementsEmployeesListIsEmpty_ReturnsNull()
+        {
+
+        }
+        [TestMethod]
+        public void FilterProcurements_CorrectIndividualData_ReturnsEmployeePlan()
+        {
+
+        }
+        [TestMethod]
+        public void FilterProcurements_NoProcurementsToUser_ReturnEmptyList()
+        {
+
+        }
+        [TestMethod]
+        public void FilterProcurements_CorrectNotAssignedData_ReturnsNotAssignedProcurements()
+        {
+
+        }
+        [TestMethod]
+        public void FilterProcurements_AllProcurementsAreAssigned_ReturnEmptyList()
+        {
+
+        }
+        [TestMethod]
+        public void FilterProcurements_WrongSetOfArguments_ReturnEmptyList()
+        {
+
+        }
+        [TestMethod]
+        public void FilterProcurements_ProcurementsEmployeesListIsNull_ReturnsNull()
+        {
+
+        }
+        [TestMethod]
+        public void FilterProcurements_ProcurementsEmployeesListIsEmpty_ReturnsNull()
+        {
+
+        }
     }
 }
