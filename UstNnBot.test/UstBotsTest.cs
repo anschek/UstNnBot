@@ -119,7 +119,7 @@ namespace UstNnBot.test
             var result = UstBot.FilterOneProcurement(procurementsEmployees, allowedUsers);
             Assert.AreEqual(0, result.Count);
         }
-        [TestMethod]//throws  System.ArgumentNullException: Value cannot be null.
+        [TestMethod]
         public void FilterOneProcurement_ProcurementsEmployeesListIsNull_ReturnsNull()
         {
             List<ProcurementsEmployee>? procurementsEmployees = null;

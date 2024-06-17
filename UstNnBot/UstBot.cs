@@ -123,15 +123,23 @@ namespace UstNnBot
                 {
                     List<int> procurementIds = GetGeneralProcurementIds();
                     string procurementsText = "";
-                    if (callbackQuery.Data == "startMenu_GetGeneralPlan") procurementsText = ProcurementsToString(FilterProcurements(procurementIds));
-                    else if (callbackQuery.Data == "startMenu_GetIndividualPlan") procurementsText = ProcurementsToString(FilterProcurements(procurementIds,
-                                                                                                                          OnlyNotAssigned: false,
-                                                                                                                          UserId: callbackQuery.Message.Chat.Id));
-                    else if (callbackQuery.Data == "startMenu_AssignProcurement") procurementsText = ProcurementsToString(FilterProcurements(procurementIds,
-                                                                                                                           OnlyNotAssigned: true));
+                    if (callbackQuery.Data == "startMenu_GetGeneralPlan")
+                    {
+                        var filteredProcurements = FilterProcurements(procurementIds);
+                        procurementsText = filteredProcurements.IsNullOrEmpty() ? "Тендеров не найдено" : ProcurementsToString(filteredProcurements);
+                    }
+                    else
+                    {
+                        List<int>? filteredProcurements = null;
+                        if (callbackQuery.Data == "startMenu_GetIndividualPlan")
+                            filteredProcurements = FilterProcurements(procurementIds, OnlyNotAssigned: false, UserId: callbackQuery.Message.Chat.Id);
+                        else if (callbackQuery.Data == "startMenu_AssignProcurement")
+                            filteredProcurements = FilterProcurements(procurementIds, OnlyNotAssigned: true);
+                        procurementsText = filteredProcurements.IsNullOrEmpty() ? "Тендеров не найдено" : ProcurementsToString(filteredProcurements);
+                    }
                     await client.SendTextMessageAsync(
                     chatId: callbackQuery.Message.Chat.Id,
-                    text: procurementsText.IsNullOrEmpty() ? "Тендеров не найдено" : procurementsText,
+                    text: procurementsText,
                     cancellationToken: token);
                 }
                 catch (Exception exception)
@@ -180,11 +188,13 @@ namespace UstNnBot
             => procurementIds.Select(procurementId => (procurementId, FilterOneProcurement(
                 GET.View.ProcurementsEmployeesByProcurement(procurementId)
                 ))).ToList();
-        //[not tested]
-        internal static List<int>? FilterOneProcurement(List<ProcurementsEmployee> procurementsEmployees, List<string>? allowedUser = null)
-        => (from pe in procurementsEmployees
+        internal static List<int>? FilterOneProcurement(List<ProcurementsEmployee>? procurementsEmployees, List<string>? allowedUser = null)
+        {
+            try { return (from pe in procurementsEmployees
             where (allowedUser ?? AllowedUsers).Contains(pe.Employee.UserName)
-            select pe.EmployeeId).ToList();
+            select pe.EmployeeId).ToList();}
+            catch { return null; }
+        }
         //[not tested]
         internal static List<int>? FilterProcurements(List<int> procurementIds, bool OnlyNotAssigned = false, long? UserId = null, List<ProcurementsEmployee>? procurementsEmployees = null)
         {
