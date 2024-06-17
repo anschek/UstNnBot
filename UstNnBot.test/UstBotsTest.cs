@@ -1,7 +1,8 @@
-using DatabaseLibrary.Entities.Actions;
+﻿using DatabaseLibrary.Entities.Actions;
 using DatabaseLibrary.Entities.ComponentCalculationProperties;
 using DatabaseLibrary.Entities.EmployeeMuchToMany;
 using DatabaseLibrary.Queries;
+using Telegram.Bot.Types;
 
 namespace UstNnBot.test
 {
@@ -54,30 +55,30 @@ namespace UstNnBot.test
         {
             var components = new List<ComponentCalculation>
             {
-                new ComponentCalculation { ComponentState = new ComponentState { Kind = "� �������" } },
-                new ComponentCalculation { ComponentState = new ComponentState { Kind = "� �������" } }
+                new ComponentCalculation { ComponentState = new ComponentState { Kind = "В резерве" } },
+                new ComponentCalculation { ComponentState = new ComponentState { Kind = "В резерве" } }
             };
-            Assert.IsTrue(UstBot.StatesOfAllComponentsAreMatch(components, "� �������"));
+            Assert.IsTrue(UstBot.StatesOfAllComponentsAreMatch(components, "В резерве"));
         }
         [TestMethod]
         public void StatesOfAllComponentsAreMatch_SomeStatesAreNotMatch_ReturnsFalse()
         {
             var components = new List<ComponentCalculation>
             {
-                new ComponentCalculation { ComponentState = new ComponentState { Kind = "� �������" } },
-                new ComponentCalculation { ComponentState = new ComponentState { Kind = "�� ������" } }
+                new ComponentCalculation { ComponentState = new ComponentState { Kind = "В резерве" } },
+                new ComponentCalculation { ComponentState = new ComponentState { Kind = "На складе" } }
             };
-            Assert.IsFalse(UstBot.StatesOfAllComponentsAreMatch(components, "� �������"));
+            Assert.IsFalse(UstBot.StatesOfAllComponentsAreMatch(components, "В резерве"));
         }
         [TestMethod]
         public void StatesOfAllComponentsAreMatch_NoStateIsMatch_ReturnsFalse()
         {
             var components = new List<ComponentCalculation>
             {
-                new ComponentCalculation { ComponentState = new ComponentState { Kind = "�� ������" } },
-                new ComponentCalculation { ComponentState = new ComponentState { Kind = "�� ������" } }
+                new ComponentCalculation { ComponentState = new ComponentState { Kind = "На складе" } },
+                new ComponentCalculation { ComponentState = new ComponentState { Kind = "На складе" } }
             };
-            Assert.IsFalse(UstBot.StatesOfAllComponentsAreMatch(components, "� �������"));
+            Assert.IsFalse(UstBot.StatesOfAllComponentsAreMatch(components, "В резерве"));
         }
         [TestMethod]
         public void StatesOfAllComponentsAreMatch_ComponentStateIsNull_ReturnsFalse()
@@ -85,15 +86,15 @@ namespace UstNnBot.test
             var components = new List<ComponentCalculation>
             {
                 new ComponentCalculation { ComponentState = null },
-                new ComponentCalculation { ComponentState = new ComponentState { Kind = "� �������" } }
+                new ComponentCalculation { ComponentState = new ComponentState { Kind = "В резерве" } }
             };
-            Assert.IsFalse(UstBot.StatesOfAllComponentsAreMatch(components, "� �������"));
+            Assert.IsFalse(UstBot.StatesOfAllComponentsAreMatch(components, "В резерве"));
         }
         [TestMethod]
         public void StatesOfAllComponentsAreMatch_ComponentsListInNull_ReturnsFalse()
         {
             List<ComponentCalculation> components = null;
-            Assert.IsFalse(UstBot.StatesOfAllComponentsAreMatch(components, "� �������"));
+            Assert.IsFalse(UstBot.StatesOfAllComponentsAreMatch(components, "В резерве"));
         }
         [TestMethod]
         public void FilterOneProcurement_SomeUsersAreAllowed_ReturnsUserIdsList()
@@ -135,41 +136,112 @@ namespace UstNnBot.test
             var result = UstBot.FilterOneProcurement(procurementsEmployees, allowedUsers);
             Assert.AreEqual(0, result.Count);
         }
-
-        [TestMethod]
+        [TestMethod]//CollectionAssert.AreEqual failed. (Different number of elements.)
         public void FilterProcurements_CorrectIndividualData_ReturnsEmployeePlan()
         {
-
+            var procurementIds = new List<int> { 1, 2, 3, 5 };
+            long userId = 1;
+            var procurementsEmployees = new List<ProcurementsEmployee>
+            {
+                new ProcurementsEmployee { EmployeeId = 1, ProcurementId = 1 },
+                new ProcurementsEmployee { EmployeeId = 1, ProcurementId = 2 },
+                new ProcurementsEmployee { EmployeeId = 2, ProcurementId = 3 },
+                new ProcurementsEmployee { EmployeeId = 4, ProcurementId = 3 },
+                new ProcurementsEmployee { EmployeeId = 1, ProcurementId = 3 },
+            };
+            var result = UstBot.FilterProcurements(procurementIds, false, userId, procurementsEmployees);
+            CollectionAssert.AreEqual(new List<int> { 1, 2 }, result);
         }
         [TestMethod]
         public void FilterProcurements_NoProcurementsToUser_ReturnEmptyList()
         {
-
+            var procurementIds = new List<int> { 1, 2, 3 };
+            long userId = 1;
+            var procurementsEmployees = new List<ProcurementsEmployee>
+            {
+                new ProcurementsEmployee { EmployeeId = 2, ProcurementId = 1 },
+                new ProcurementsEmployee { EmployeeId = 2, ProcurementId = 2 }
+            };
+            var result = UstBot.FilterProcurements(procurementIds, false, userId, procurementsEmployees);
+            Assert.AreEqual(0, result.Count);
         }
-        [TestMethod]
+        [TestMethod]//CollectionAssert.AreEqual failed. (Different number of elements.)
         public void FilterProcurements_CorrectNotAssignedData_ReturnsNotAssignedProcurements()
         {
-
+            var procurementIds = new List<int> { 1, 2, 3 };
+            var procurementsEmployees = new List<ProcurementsEmployee>
+            {
+                new ProcurementsEmployee { Employee = new Employee { Position = new Position { Kind = "Инженер отдела производства" } }, ProcurementId = 1 },
+                new ProcurementsEmployee { Employee = new Employee { Position = new Position { Kind = "Инженер отдела производства" } }, ProcurementId = 2 }
+            };
+            var result = UstBot.FilterProcurements(procurementIds, true, null, procurementsEmployees);
+            CollectionAssert.AreEqual(new List<int> { 3 }, result);
         }
         [TestMethod]
-        public void FilterProcurements_AllProcurementsAreAssigned_ReturnEmptyList()
+        public void FilterProcurements_AllProcurementsAreAssigned_ReturnsEmptyList()
         {
-
+            var procurementIds = new List<int> { 1, 2, 3 };
+            var procurementsEmployees = new List<ProcurementsEmployee>
+            {
+                new ProcurementsEmployee { Employee = new Employee { Position = new Position { Kind = "Инженер отдела производства" } }, ProcurementId = 1 },
+                new ProcurementsEmployee { Employee = new Employee { Position = new Position { Kind = "Инженер отдела производства" } }, ProcurementId = 2 },
+                new ProcurementsEmployee { Employee = new Employee { Position = new Position { Kind = "Инженер отдела производства" } }, ProcurementId = 3 }
+            };
+            var result = UstBot.FilterProcurements(procurementIds, true, null, procurementsEmployees);
+            Assert.AreEqual(0, result.Count);
         }
         [TestMethod]
-        public void FilterProcurements_WrongSetOfArguments_ReturnEmptyList()
+        public void FilterProcurements_WrongNotAssignedProcurementsAgruments_ReturnsNull()
         {
-
+            var procurementIds = new List<int> { 1, 2};
+            var procurementsEmployees= new List<ProcurementsEmployee>
+            {
+                new ProcurementsEmployee { Employee = new Employee { Position = new Position { Kind = "Инженер отдела производства" } }, ProcurementId = 1 },
+                new ProcurementsEmployee { Employee = new Employee { Position = new Position { Kind = "Инженер отдела производства" } }, ProcurementId = 2 }
+            };
+            var result = UstBot.FilterProcurements(procurementIds, false, null, procurementsEmployees);
+            Assert.IsNull(result);
+        }
+        [TestMethod]//System.ArgumentNullException: Value cannot be null
+        public void FilterProcurements_ProcurementIdsListIsNull_ReturnsNull()
+        {
+            List<int>? procurementIds = null;
+            var procurementsEmployees = new List<ProcurementsEmployee>
+            {
+                new ProcurementsEmployee { EmployeeId = 1, ProcurementId = 1 },
+                new ProcurementsEmployee { EmployeeId = 1, ProcurementId = 2 },
+                new ProcurementsEmployee { EmployeeId = 2, ProcurementId = 3 }
+            };
+            var result = UstBot.FilterProcurements(procurementIds, false, 1, procurementsEmployees);
+            Assert.IsNull(result);
         }
         [TestMethod]
-        public void FilterProcurements_ProcurementsEmployeesListIsNull_ReturnsNull()
+        public void FilterProcurements_ProcurementIdsListIsEmpty_ReturnsEmptyList()
         {
-
+            List<int>? procurementIds = new();
+            var procurementsEmployees = new List<ProcurementsEmployee>
+            {
+                new ProcurementsEmployee { EmployeeId = 1, ProcurementId = 1 },
+                new ProcurementsEmployee { EmployeeId = 1, ProcurementId = 2 },
+                new ProcurementsEmployee { EmployeeId = 2, ProcurementId = 3 }
+            };
+            var result = UstBot.FilterProcurements(procurementIds, false, 1, procurementsEmployees);
+            Assert.AreEqual(0, result.Count);
         }
         [TestMethod]
-        public void FilterProcurements_ProcurementsEmployeesListIsEmpty_ReturnsNull()
+        public void FilterProcurements_ProcurementsEmployeesListIsNull_ReturnsEmptyList()
         {
-
+            var procurementIds = new List<int> { 1, 2, 3 };
+            var result = UstBot.FilterProcurements(procurementIds, false, 1, null);
+            Assert.AreEqual(0, result.Count);
+        }
+        [TestMethod]
+        public void FilterProcurements_ProcurementsEmployeesListIsEmpty_ReturnsEmptyList()
+        {
+            var procurementIds = new List<int> { 1, 2, 3 };
+            var procurementsEmployees = new List<ProcurementsEmployee>();
+            var result = UstBot.FilterProcurements(procurementIds, false, 1, procurementsEmployees);
+            Assert.AreEqual(0, result.Count);
         }
     }
 }
