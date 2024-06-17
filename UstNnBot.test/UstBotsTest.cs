@@ -136,7 +136,7 @@ namespace UstNnBot.test
             var result = UstBot.FilterOneProcurement(procurementsEmployees, allowedUsers);
             Assert.AreEqual(0, result.Count);
         }
-        [TestMethod]//CollectionAssert.AreEqual failed. (Different number of elements.)
+        [TestMethod]
         public void FilterProcurements_CorrectIndividualData_ReturnsEmployeePlan()
         {
             var procurementIds = new List<int> { 1, 2, 3, 5 };
@@ -150,7 +150,7 @@ namespace UstNnBot.test
                 new ProcurementsEmployee { EmployeeId = 1, ProcurementId = 3 },
             };
             var result = UstBot.FilterProcurements(procurementIds, false, userId, procurementsEmployees);
-            CollectionAssert.AreEqual(new List<int> { 1, 2 }, result);
+            CollectionAssert.AreEqual(new List<int> { 1, 2, 3 }, result);
         }
         [TestMethod]
         public void FilterProcurements_NoProcurementsToUser_ReturnEmptyList()
@@ -165,7 +165,7 @@ namespace UstNnBot.test
             var result = UstBot.FilterProcurements(procurementIds, false, userId, procurementsEmployees);
             Assert.AreEqual(0, result.Count);
         }
-        [TestMethod]//CollectionAssert.AreEqual failed. (Different number of elements.)
+        [TestMethod]
         public void FilterProcurements_CorrectNotAssignedData_ReturnsNotAssignedProcurements()
         {
             var procurementIds = new List<int> { 1, 2, 3 };
@@ -202,7 +202,7 @@ namespace UstNnBot.test
             var result = UstBot.FilterProcurements(procurementIds, false, null, procurementsEmployees);
             Assert.IsNull(result);
         }
-        [TestMethod]//System.ArgumentNullException: Value cannot be null
+        [TestMethod]
         public void FilterProcurements_ProcurementIdsListIsNull_ReturnsNull()
         {
             List<int>? procurementIds = null;

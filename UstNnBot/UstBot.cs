@@ -117,7 +117,7 @@ namespace UstNnBot
                 cancellationToken: token);
                 _userStates[callbackQuery.Message.Chat.Id] = "waitingForProcurementId";
             }
-            else//[not tested]
+            else//[not checked]
             {
                 try
                 {
@@ -195,21 +195,26 @@ namespace UstNnBot
             select pe.EmployeeId).ToList();}
             catch { return null; }
         }
-        //[not tested]
         internal static List<int>? FilterProcurements(List<int> procurementIds, bool OnlyNotAssigned = false, long? UserId = null, List<ProcurementsEmployee>? procurementsEmployees = null)
         {
-            if (UserId != null)//Individual plan
+            try
+            {            
+                if (UserId != null)//Individual plan
                 return (from procurementId in procurementIds
                         where (from pe in procurementsEmployees ?? GET.View.ProcurementsEmployeesByProcurement(procurementId)
+                               where pe.ProcurementId == procurementId
                                select pe.EmployeeId).Any(employeeId => employeeId == UserId)
                         select procurementId).ToList();
-            else if (OnlyNotAssigned == true)
+                else if (OnlyNotAssigned == true)
                 return (from procurementId in procurementIds
                         where (from pe in procurementsEmployees ?? GET.View.ProcurementsEmployeesByProcurement(procurementId)
                                where pe.Employee.Position.Kind == "Инженер отдела производства"
+                               && pe.ProcurementId==procurementId
                                select pe).IsNullOrEmpty()
                         select procurementId).ToList();
-            return null;
+                else return null;
+            }
+            catch { return null; }
         }
         //FORMMATING
         static string ComponentsToString(Dictionary<ComponentCalculation, List<ComponentCalculation>> components, List<Comment>? comments)
