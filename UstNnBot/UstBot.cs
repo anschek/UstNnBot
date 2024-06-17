@@ -7,7 +7,7 @@ using Telegram.Bot.Types.Enums;
 using DatabaseLibrary.Entities.Actions;
 using Microsoft.IdentityModel.Tokens;
 using System.Runtime.CompilerServices;
-using DatabaseLibrary.Entities.ProcurementProperties;
+using DatabaseLibrary.Entities.EmployeeMuchToMany;
 
 [assembly: InternalsVisibleTo("UstNnBot.test")]
 namespace UstNnBot
@@ -22,7 +22,7 @@ namespace UstNnBot
             _userStates = new Dictionary<long, string>();
             _botClient.StartReceiving(Update, Error);
         }
-        //bot interface
+        //BOT INTERFACE
         static async Task Update(ITelegramBotClient client, Update update, CancellationToken token)
         {
             if (update.Type == UpdateType.Message && update.Message?.Text != null)
@@ -46,11 +46,11 @@ namespace UstNnBot
                 new[]
                 {
                     InlineKeyboardButton.WithCallbackData(text: "Посмотреть общий план", callbackData: "startMenu_GetGeneralPlan"),
-                },                
+                },
                 new[]
                 {
                     InlineKeyboardButton.WithCallbackData(text: "Посмотреть свой план", callbackData: "startMenu_GetIndividualPlan"),
-                },              
+                },
                 new[]
                 {
                     InlineKeyboardButton.WithCallbackData(text: "Взять в работу тендер", callbackData: "startMenu_AssignProcurement"),
@@ -116,33 +116,32 @@ namespace UstNnBot
                 text: "Введите id тедера:",
                 cancellationToken: token);
                 _userStates[callbackQuery.Message.Chat.Id] = "waitingForProcurementId";
-            } //[not tested]
-            else if (callbackQuery.Data == "startMenu_GetGeneralPlan")
+            }
+            else//[not tested]
             {
-                List<int> procurementIds = GetGeneralProcurementIds();
-                List<(int, List<int>?)>? filteredProcurements = FilterProcurementsByPlanKind(procurementIds);
-                await client.SendTextMessageAsync(
-                chatId: callbackQuery.Message.Chat.Id,
-                text: ProcurementsToString(filteredProcurements),
-                cancellationToken: token);
-            } //[not tested]
-            else if (callbackQuery.Data == "startMenu_GetIndividualPlan")
-            {
-                List<int> procurementIds = GetGeneralProcurementIds();
-                List<(int, List<int>?)>? filteredProcurements = FilterProcurementsByPlanKind(procurementIds, false, callbackQuery.Message.Chat.Id);
-                await client.SendTextMessageAsync(
-                chatId: callbackQuery.Message.Chat.Id,
-                text: ProcurementsToString(filteredProcurements),
-                cancellationToken: token);
-            } //[not tested]
-            else if (callbackQuery.Data == "startMenu_AssignProcurement")
-            {
-                List<int> procurementIds = GetGeneralProcurementIds();
-                List<(int, List<int>?)>? filteredProcurements = FilterProcurementsByPlanKind(procurementIds, true);
-                await client.SendTextMessageAsync(
-                chatId: callbackQuery.Message.Chat.Id,
-                text: ProcurementsToString(filteredProcurements),
-                cancellationToken: token);
+                try
+                {
+                    List<int> procurementIds = GetGeneralProcurementIds();
+                    string procurementsText = "";
+                    if (callbackQuery.Data == "startMenu_GetGeneralPlan") procurementsText = ProcurementsToString(FilterProcurements(procurementIds));
+                    else if (callbackQuery.Data == "startMenu_GetIndividualPlan") procurementsText = ProcurementsToString(FilterProcurements(procurementIds,
+                                                                                                                          OnlyNotAssigned: false,
+                                                                                                                          UserId: callbackQuery.Message.Chat.Id));
+                    else if (callbackQuery.Data == "startMenu_AssignProcurement") procurementsText = ProcurementsToString(FilterProcurements(procurementIds,
+                                                                                                                           OnlyNotAssigned: true));
+                    await client.SendTextMessageAsync(
+                    chatId: callbackQuery.Message.Chat.Id,
+                    text: procurementsText.IsNullOrEmpty() ? "Тендеров не найдено" : procurementsText,
+                    cancellationToken: token);
+                }
+                catch (Exception exception)
+                {
+                    Console.WriteLine($"{exception.Message} {exception.TargetSite}");
+                    await client.SendTextMessageAsync(
+                    chatId: callbackQuery.Message.Chat.Id,
+                    text: "Ошибка определения тендеров",
+                    cancellationToken: token);
+                }
             }
             return;
         }
@@ -150,57 +149,57 @@ namespace UstNnBot
         {
             throw new NotImplementedException();
         }
-        //data
+        //DATA
         internal static List<string>? AllowedUsers => (from employee in GET.View.Employees()
                                                        where employee.IsAvailable!
                                                        && employee.Position.Kind == "Инженер отдела производства"
                                                        select employee.UserName).ToList();
-        //methods
+        //METHODS
         internal static Dictionary<ComponentCalculation, List<ComponentCalculation>>? GetComponentsWithHeaders(int procurementId)
         {
             IEnumerable<ComponentCalculation>? components = GET.View.ComponentCalculationsBy(procurementId);
             IEnumerable<ComponentCalculation?> componentsHeaders = components.Where(component => (bool)component.IsHeader);
             return componentsHeaders.ToDictionary(
-                header => header,
+                header => header!,
                 header => components.Where(component => component.ParentName == header.Id && !component.ComponentNamePurchase.IsNullOrEmpty()).ToList()
             );
         }
         internal static List<Comment>? GetTechnicalComments(int procurementId) => GET.View.CommentsBy(procurementId, isTechical: true);
-        //[not tested]
-        internal static List<int>? GetGeneralProcurementIds() 
-            => GetProcurementIdsByComponentState(
-                GET.View.ProcurementsBy("Выигран 2ч", 
-                GET.KindOf.ProcurementState), "В резерве");
-        internal static List<int>? GetProcurementIdsByComponentState(List<Procurement>? procurements, string componentState) =>
-            (from procurement in procurements
-             where (from component in GET.View.ComponentCalculationsBy(procurement.Id)
-                    select component.ComponentState.Kind).All(state => state==componentState)
+        //this method is a wrapper, it calls a method GetProcurementIdsByComponentState with argument that is already tested in DatabaseLibrary
+        static List<int>? GetGeneralProcurementIds() =>
+            (from procurement in GET.View.ProcurementsBy("Выигран 2ч", GET.KindOf.ProcurementState)
+             where StatesOfAllComponentsAreMatch(GET.View.ComponentCalculationsBy(procurement.Id), "В резерве")
              select procurement.Id).ToList();
         //[not tested]
-        internal static List<(int, List<int>?)>? FilterProcurementsByPlanKind(List<int> procurementIds, bool OnlyNotAssigned = false, long? UserId = null)
+        internal static bool StatesOfAllComponentsAreMatch(List<ComponentCalculation> components, string componentState) =>
+            components.All(component => component.ComponentState.Kind == componentState);
+        //wrapper of FilterOneProcurement
+        internal static List<(int, List<int>?)>? FilterProcurements(List<int> procurementIds)
+            => procurementIds.Select(procurementId => (procurementId, FilterOneProcurement(procurementId,
+                GET.View.ProcurementsEmployeesByProcurement(procurementId)
+                ))).ToList();
+        //[not tested]
+        internal static List<int>? FilterOneProcurement(int procurementId, List<ProcurementsEmployee> procurementsEmployees, List<string>? allowedUser = null)
+        => (from pe in procurementsEmployees
+            where (allowedUser ?? AllowedUsers).Contains(pe.Employee.UserName)
+            select pe.EmployeeId).ToList();
+        //[not tested]
+        internal static List<int>? FilterProcurements(List<int> procurementIds, bool OnlyNotAssigned = false, long? UserId = null, List<ProcurementsEmployee>? procurementsEmployees = null)
         {
-            if (OnlyNotAssigned == false && UserId == null)
-                return procurementIds.Select(procurementId =>
-                (
-                    procurementId,
-                    GET.View.ProcurementsEmployeesByProcurement(procurementId)!
-                        .Where(pe => AllowedUsers.Contains(pe.Employee.UserName))
-                        .Select(pe => pe.Employee.Id)
-                        .ToList()
-                )).ToList()!;
-            if (UserId != null)
+            if (UserId != null)//Individual plan
                 return (from procurementId in procurementIds
-                        where (from pe in GET.View.ProcurementsEmployeesByProcurement(procurementId)
+                        where (from pe in procurementsEmployees ?? GET.View.ProcurementsEmployeesByProcurement(procurementId)
                                select pe.EmployeeId).Any(employeeId => employeeId == UserId)
-                        select (procurementId, new List<int>())).ToList();
-            if (OnlyNotAssigned == true)
+                        select procurementId).ToList();
+            else if (OnlyNotAssigned == true)
                 return (from procurementId in procurementIds
-                        where (from pe in GET.View.ProcurementsEmployeesByProcurement(procurementId)
-                               select pe.EmployeeId).IsNullOrEmpty()
-                        select (procurementId, new List<int>())).ToList();
+                        where (from pe in procurementsEmployees ?? GET.View.ProcurementsEmployeesByProcurement(procurementId)
+                               where pe.Employee.Position.Kind == "Инженер отдела производства"
+                               select pe).IsNullOrEmpty()
+                        select procurementId).ToList();
             return null;
         }
-        //formmating
+        //FORMMATING
         static string ComponentsToString(Dictionary<ComponentCalculation, List<ComponentCalculation>> components, List<Comment>? comments)
         {
             string componentsStr = "";
@@ -218,12 +217,17 @@ namespace UstNnBot
             if (assemblyMapsStr != "") resultText += $"\n\n*Карта сборки*\n" + assemblyMapsStr;
             return resultText;
         }
-        //[not tested]
-        static string ProcurementsToString(List<(int, List<int>?)>? filteredProcurementsAndEmployees)
+        //[not checked]
+        static string ProcurementsToString(List<(int, List<int>?)> filteredProcurementsAndEmployees)
         {
-            if (filteredProcurementsAndEmployees == null) return "тендеров не найдено";
             return string.Join("\n", filteredProcurementsAndEmployees.Select(te => $"*{te.Item1}*" + te.Item1 == null ? "" : "[назначен]" + "\n"
             + string.Join("\n", GetComponentsWithHeaders(te.Item1).Keys.Select(component => component.ComponentHeaderType.Kind))
+            ));
+        }//[not checked]        
+        static string ProcurementsToString(List<int>? filteredProcurements)
+        {
+            return string.Join("\n", filteredProcurements.Select(te => $"*{te}*\n"
+            + string.Join("\n", GetComponentsWithHeaders(te).Keys.Select(component => component.ComponentHeaderType.Kind))
             ));
         }
     }
