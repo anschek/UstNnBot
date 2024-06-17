@@ -45,7 +45,7 @@ namespace UstNnBot.test
         public void GetTechnicalComments_NonExistentId_ReturnsEmptyList()
         {
             int procurementId = 1;
-            var returnsList = UstBot.GetComponentsWithHeaders(procurementId);
+            var returnsList = UstBot.GetTechnicalComments(procurementId);
             Assert.AreEqual(0, returnsList.Count());
         }
         [TestMethod]
@@ -78,7 +78,7 @@ namespace UstNnBot.test
             };
             Assert.IsFalse(UstBot.StatesOfAllComponentsAreMatch(components, "В резерве"));
         }
-        [TestMethod]//returns System.NullReferenceException
+        [TestMethod]
         public void StatesOfAllComponentsAreMatch_ComponentStateIsNull_ReturnsFalse()
         {
             var components = new List<ComponentCalculation>
@@ -88,7 +88,7 @@ namespace UstNnBot.test
             };
             Assert.IsFalse(UstBot.StatesOfAllComponentsAreMatch(components, "В резерве"));
         }
-        [TestMethod]//returns  System.ArgumentNullException
+        [TestMethod]
         public void StatesOfAllComponentsAreMatch_ComponentsListInNull_ReturnsFalse()
         {
             List<ComponentCalculation> components = null;

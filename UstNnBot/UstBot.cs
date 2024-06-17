@@ -170,9 +170,11 @@ namespace UstNnBot
             (from procurement in GET.View.ProcurementsBy("Выигран 2ч", GET.KindOf.ProcurementState)
              where StatesOfAllComponentsAreMatch(GET.View.ComponentCalculationsBy(procurement.Id), "В резерве")
              select procurement.Id).ToList();
-        //[not tested]
-        internal static bool StatesOfAllComponentsAreMatch(List<ComponentCalculation>? components, string componentState) =>
-            components.All(component => component.ComponentState.Kind == componentState);
+        internal static bool StatesOfAllComponentsAreMatch(List<ComponentCalculation>? components, string componentState)
+        {
+            try { return components!.All(component => component.ComponentState!.Kind == componentState); }
+            catch { return false; }
+        }
         //wrapper of FilterOneProcurement
         internal static List<(int, List<int>?)>? FilterProcurements(List<int> procurementIds)
             => procurementIds.Select(procurementId => (procurementId, FilterOneProcurement(
