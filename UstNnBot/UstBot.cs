@@ -8,6 +8,7 @@ using DatabaseLibrary.Entities.Actions;
 using Microsoft.IdentityModel.Tokens;
 using System.Runtime.CompilerServices;
 using DatabaseLibrary.Entities.EmployeeMuchToMany;
+using System.ComponentModel;
 
 [assembly: InternalsVisibleTo("UstNnBot.test")]
 namespace UstNnBot
@@ -180,7 +181,13 @@ namespace UstNnBot
              select procurement.Id).ToList();
         internal static bool StatesOfAllComponentsAreMatch(List<ComponentCalculation>? components, string componentState)
         {
-            try { return components!.All(component => component.ComponentState!.Kind == componentState); }
+            try {
+                var componentsStates = (from component in components
+                                        where component.IsHeader == false
+                                        select component.ComponentState).ToList();
+                if(componentsStates.Count > 0) return componentsStates.All(state => state!=null && state.Kind == componentState);
+                return false;
+            }
             catch { return false; }
         }
         //wrapper of FilterOneProcurement
