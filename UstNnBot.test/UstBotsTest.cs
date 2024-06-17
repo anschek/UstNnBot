@@ -51,27 +51,48 @@ namespace UstNnBot.test
         [TestMethod]
         public void StatesOfAllComponentsAreMatch_AllStatesAreMatch_ReturnsTrue()
         {
-
+            var components = new List<ComponentCalculation>
+            {
+                new ComponentCalculation { ComponentState = new ComponentState { Kind = "В резерве" } },
+                new ComponentCalculation { ComponentState = new ComponentState { Kind = "В резерве" } }
+            };
+            Assert.IsTrue(UstBot.StatesOfAllComponentsAreMatch(components, "В резерве"));
         }
         [TestMethod]
         public void StatesOfAllComponentsAreMatch_SomeStatesAreNotMatch_ReturnsFalse()
         {
-
+            var components = new List<ComponentCalculation>
+            {
+                new ComponentCalculation { ComponentState = new ComponentState { Kind = "В резерве" } },
+                new ComponentCalculation { ComponentState = new ComponentState { Kind = "На складе" } }
+            };
+            Assert.IsFalse(UstBot.StatesOfAllComponentsAreMatch(components, "В резерве"));
         }
         [TestMethod]
         public void StatesOfAllComponentsAreMatch_NoStateIsMatch_ReturnsFalse()
         {
-
+            var components = new List<ComponentCalculation>
+            {
+                new ComponentCalculation { ComponentState = new ComponentState { Kind = "На складе" } },
+                new ComponentCalculation { ComponentState = new ComponentState { Kind = "На складе" } }
+            };
+            Assert.IsFalse(UstBot.StatesOfAllComponentsAreMatch(components, "В резерве"));
         }
-        [TestMethod]
+        [TestMethod]//returns System.NullReferenceException
         public void StatesOfAllComponentsAreMatch_ComponentStateIsNull_ReturnsFalse()
         {
-
+            var components = new List<ComponentCalculation>
+            {
+                new ComponentCalculation { ComponentState = null },
+                new ComponentCalculation { ComponentState = new ComponentState { Kind = "В резерве" } }
+            };
+            Assert.IsFalse(UstBot.StatesOfAllComponentsAreMatch(components, "В резерве"));
         }
-        [TestMethod]
+        [TestMethod]//returns  System.ArgumentNullException
         public void StatesOfAllComponentsAreMatch_ComponentsListInNull_ReturnsFalse()
         {
-
+            List<ComponentCalculation> components = null;
+            Assert.IsFalse(UstBot.StatesOfAllComponentsAreMatch(components, "В резерве"));
         }
         [TestMethod]
         public void FilterOneProcurement_SomeUsersAreAllowed_ReturnsUserIdsList()
