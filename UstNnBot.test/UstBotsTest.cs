@@ -55,8 +55,13 @@ namespace UstNnBot.test
         {
             var components = new List<ComponentCalculation>
             {
-                new ComponentCalculation { ComponentState = new ComponentState { Kind = "В резерве" }, IsHeader=false },
-                new ComponentCalculation { ComponentState = new ComponentState { Kind = "В резерве" }, IsHeader=false },
+                new ComponentCalculation { Id=1, ComponentHeaderType = new ComponentHeaderType{ Kind="Системный блок 1"}, IsHeader=true },
+                new ComponentCalculation { Id=2, ComponentHeaderType = new ComponentHeaderType{ Kind="Оргтехника"}, IsHeader=true },
+                new ComponentCalculation { Id=3, ComponentHeaderType = new ComponentHeaderType{ Kind="Прочее"}, IsHeader=true },
+                new ComponentCalculation { ComponentState = new ComponentState { Kind = "В резерве" }, IsHeader=false, ParentName=1 },
+                new ComponentCalculation { ComponentState = new ComponentState { Kind = "В резерве" }, IsHeader=false, ParentName=1 },
+                new ComponentCalculation { ComponentState = new ComponentState { Kind = "другой статус" }, IsHeader=false, ParentName=2 },
+                new ComponentCalculation { ComponentState = new ComponentState { Kind = "другой статус" }, IsHeader=false, ParentName=3 },
                 new ComponentCalculation { IsHeader=true }
             };
             Assert.IsTrue(UstBot.StatesOfAllComponentsAreMatch(components, "В резерве"));

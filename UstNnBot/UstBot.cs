@@ -181,11 +181,15 @@ namespace UstNnBot
              select procurement.Id).ToList();
         internal static bool StatesOfAllComponentsAreMatch(List<ComponentCalculation>? components, string componentState)
         {
-            try {
+            try
+            {
                 var componentsStates = (from component in components
-                                        where component.IsHeader == false
-                                        select component.ComponentState).ToList();
-                if(componentsStates.Count > 0) return componentsStates.All(state => state!=null && state.Kind == componentState);
+                                            where component.IsHeader == false
+                                            && !(new string[] { "Оргтехника", "Прочее"}.Contains((from parentComponent in components
+                                                 where component.ParentName == parentComponent.Id
+                                                 select parentComponent.ComponentHeaderType.Kind).First())) 
+                                            select component.ComponentState).ToList();
+                if (componentsStates.Count > 0) return componentsStates.All(state => state != null && state.Kind == componentState);
                 return false;
             }
             catch { return false; }
