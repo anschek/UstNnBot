@@ -8,7 +8,6 @@ using DatabaseLibrary.Entities.Actions;
 using Microsoft.IdentityModel.Tokens;
 using System.Runtime.CompilerServices;
 using DatabaseLibrary.Entities.EmployeeMuchToMany;
-using DatabaseLibrary.Entities.ProcurementProperties;
 
 [assembly: InternalsVisibleTo("UstNnBot.test")]
 namespace UstNnBot
@@ -149,7 +148,7 @@ namespace UstNnBot
                     buttons = new List<List<InlineKeyboardButton>>(procurementsWithEmployees.Select(
                     procurement => new List<InlineKeyboardButton>
                     {
-                       InlineKeyboardButton.WithCallbackData(procurement.Key.Id.ToString(), $"assignProcurement_{procurement.Key.Id}")
+                       InlineKeyboardButton.WithCallbackData(procurement.Key.ToString(), $"assignProcurement_{procurement.Key}")
                     }));
                 }
                 await _botClient.EditMessageTextAsync(chatId, messageId, procurementsText, replyMarkup: CreateInlineKeyboard(buttons),
@@ -300,12 +299,10 @@ namespace UstNnBot
         }
         internal static List<Comment>? GetTechnicalComments(int procurementId) => GET.View.CommentsBy(procurementId, isTechical: true);
         //this method is a wrapper, it calls a method StatesOfAllComponentsAreMatch with argument that is already tested in DatabaseLibrary
-        //[not optimized]
-        static List<Procurement>? GetGeneralProcurements() =>
+        static List<int>? GetGeneralProcurementsIds() =>
             (from procurement in GET.View.ProcurementsBy("Выигран 2ч", GET.KindOf.ProcurementState)
              where StatesOfAllComponentsAreMatch(GET.View.ComponentCalculationsBy(procurement.Id), "В резерве")
-             select procurement).ToList();
-        //[not optimized]
+             select procurement.Id).ToList();
         internal static bool StatesOfAllComponentsAreMatch(List<ComponentCalculation>? components, string componentState)
         {
             try
@@ -322,13 +319,11 @@ namespace UstNnBot
             catch { return false; }
         }
         //wrapper of AllowedUsersInProcurementsEmployeeList
-        //[not optimized]
-        internal static Dictionary<Procurement, List<int>?> GetGeneralPlanWithEmployeesIds(List<Procurement>? procurements = null)
-            => (procurements ?? GetGeneralProcurements())!.ToDictionary(
+        internal static Dictionary<int, List<int>?> GetGeneralPlanWithEmployeesIds(List<int>? procurements = null)
+            => (procurements ?? GetGeneralProcurementsIds())!.ToDictionary(
                 procurement => procurement,
-                procurement => AllowedUsersInProcurementsEmployeeList(GET.View.ProcurementsEmployeesByProcurement(procurement.Id)).ToList()
+                procurement => AllowedUsersInProcurementsEmployeeList(GET.View.ProcurementsEmployeesByProcurement(procurement))!.ToList()
                 )!;
-        //[not optimized]
         internal static List<int>? AllowedUsersInProcurementsEmployeeList(List<ProcurementsEmployee>? procurementsEmployees, HashSet<string>? allowedUser = null)
         {
             try
@@ -339,14 +334,12 @@ namespace UstNnBot
             }
             catch { return null; }
         }
-        //[not optimized]
-        internal static List<Procurement>? GetIndividualPlanByUserEmployeeId(int userEmployeeId, List<Procurement>? procurements = null, List<ProcurementsEmployee>? procurementsEmployees = null)
-            => (from procurement in procurements ?? GetGeneralProcurements()
-                where (from pe in procurementsEmployees ?? GET.View.ProcurementsEmployeesByProcurement(procurement.Id)
-                       where pe.ProcurementId == procurement.Id
+        internal static List<int>? GetIndividualPlanByUserEmployeeId(int userEmployeeId, List<int>? procurements = null, List<ProcurementsEmployee>? procurementsEmployees = null)
+            => (from procurement in procurements ?? GetGeneralProcurementsIds()
+                where (from pe in procurementsEmployees ?? GET.View.ProcurementsEmployeesByProcurement(procurement)
+                       where pe.ProcurementId == procurement
                        select pe.EmployeeId).Any(employeeId => employeeId == userEmployeeId)
                 select procurement).ToList();
-        //[not optimized]
         static void AssignProcurement(string username, int procurementId)
         {
             ProcurementsEmployee procurementsEmployee = new ProcurementsEmployee
@@ -375,16 +368,16 @@ namespace UstNnBot
             if (assemblyMapsStr != "") resultText += $"\n\n*Карта сборки*\n" + assemblyMapsStr;
             return resultText;
         }
-        static string ProcurementsToString(Dictionary<Procurement, List<int>?> procurementsWithEmployeesIds)
+        static string ProcurementsToString(Dictionary<int, List<int>?> procurementsWithEmployeesIds)
         {
-            return string.Join("\n", procurementsWithEmployeesIds.Select(pe => $"*{pe.Key.Id}*" + (pe.Value.IsNullOrEmpty() ? "" : $"[взяли в работу: {pe.Value.Count}]") + "\n"
-            + string.Join("\n", GetComponentsWithHeaders(pe.Key.Id).Keys.Select(component => component.ComponentHeaderType.Kind))
+            return string.Join("\n", procurementsWithEmployeesIds.Select(pe => $"*{pe.Key}*" + (pe.Value.IsNullOrEmpty() ? "" : $" \\[ взяли в работу: {pe.Value.Count} ]") + "\n"
+            + string.Join("\n", GetComponentsWithHeaders(pe.Key).Keys.Select(component => component.ComponentHeaderType.Kind))
             ));
         }      
-        static string ProcurementsToString(List<Procurement>? procurements)
+        static string ProcurementsToString(List<int>? procurements)
         {
-            return string.Join("\n", procurements.Select(procurement => $"*{procurement.Id}*\n"
-            + string.Join("\n", GetComponentsWithHeaders(procurement.Id).Keys.Select(component => component.ComponentHeaderType.Kind))
+            return string.Join("\n", procurements.Select(procurement => $"*{procurement}*\n"
+            + string.Join("\n", GetComponentsWithHeaders(procurement).Keys.Select(component => component.ComponentHeaderType.Kind))
             ));
         }
     }
