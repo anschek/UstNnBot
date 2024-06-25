@@ -194,7 +194,7 @@ namespace UstNnBot
                 else
                 {
                     List<Comment>? comments = GetTechnicalComments(userProcurementId);
-                    string componentsMessage = $"Компоненты тендера *{userProcurementId}*\n" + ComponentsToString(components, comments)
+                    string componentsMessage = ComponentsToString(components, comments)
                         + "\nВы уверены, что берете тендер в работу?";
                     await _botClient.EditMessageTextAsync(chatId, messageId, componentsMessage, replyMarkup: inlineKeyboard,
                         cancellationToken: token, parseMode: ParseMode.Markdown);
@@ -357,15 +357,15 @@ namespace UstNnBot
             string assemblyMapsStr = "";
             foreach (var header in components.Keys)
             {
-                componentsStr += $"\n•      {header.ComponentHeaderType.Kind}\n" + string.Join("\n", components[header]
-                    .Select(component => $"{component.ComponentNamePurchase}    {component.CountPurchase} шт."));
+                componentsStr += $"\n{header.ComponentHeaderType.Kind}\n" + string.Join("\n", components[header]
+                    .Select(component => $"_•   {component.ComponentNamePurchase}    _*{component.CountPurchase}*_ шт._"));
                 if (components[header].Count(component => !component.AssemblyMap.IsNullOrEmpty()) > 0)
-                    assemblyMapsStr += $"•      {header.ComponentHeaderType.Kind}\n" + string.Join("", components[header]
-                        .Select(component => !component.AssemblyMap.IsNullOrEmpty() ? $"{component.ComponentNamePurchase} - {component.AssemblyMap}\n" : ""));
+                    assemblyMapsStr += $"{header.ComponentHeaderType.Kind}\n" + string.Join("", components[header]
+                        .Select(component => !component.AssemblyMap.IsNullOrEmpty() ? $"_•  {component.ComponentNamePurchase} - {component.AssemblyMap}_\n" : ""));
             }
-            string resultText = "*Компоненты*" + componentsStr;
-            if (!comments.IsNullOrEmpty()) resultText += $"\n\n*Комменатрии*\n{string.Join("\n", comments.Select(comment => comment.Text))}";
+            string resultText = $"*Компоненты тендера {components.First().Key.ProcurementId}*" + componentsStr;
             if (assemblyMapsStr != "") resultText += $"\n\n*Карта сборки*\n" + assemblyMapsStr;
+            if (!comments.IsNullOrEmpty()) resultText += $"\n\n*Комменатрии*\n{string.Join("\n", comments.Select(comment => comment.Text))}";
             return resultText;
         }
         static string ProcurementsToString(Dictionary<int, List<int>?> procurementsWithEmployeesIds)
