@@ -38,10 +38,10 @@ namespace UstNnBot
         {
             var inlineKeyboard = new InlineKeyboardMarkup(new[]
             {
-                new []  {InlineKeyboardButton.WithCallbackData(text: "Определить компоненты по Id тендера", callbackData: "startMenu_GetComponents"),},
-                new []  { InlineKeyboardButton.WithCallbackData(text: "Посмотреть общий план", callbackData: "startMenu_GetGeneralPlan"),   },
-                new []  { InlineKeyboardButton.WithCallbackData(text: "Посмотреть свой план", callbackData: "startMenu_GetIndividualPlan"), },
-                new []  {InlineKeyboardButton.WithCallbackData(text: "Взять в работу тендер", callbackData: "startMenu_AssignProcurement"), }
+                new []  {InlineKeyboardButton.WithCallbackData(text: "Определить компоненты по Id тендера", callbackData: "startMenu_GetComponents"),    },
+                new []  { InlineKeyboardButton.WithCallbackData(text: "Посмотреть общий план",              callbackData: "startMenu_GetGeneralPlan"),   },
+                new []  { InlineKeyboardButton.WithCallbackData(text: "Посмотреть свой план",               callbackData: "startMenu_GetIndividualPlan"),},
+                new []  {InlineKeyboardButton.WithCallbackData(text: "Взять в работу тендер",               callbackData: "startMenu_AssignProcurement"),}
             });
             var text = "Выберите действие:";
             if (messageId.HasValue)
@@ -73,41 +73,50 @@ namespace UstNnBot
             }
             return;
         }
+        private static InlineKeyboardMarkup CreateInlineKeyboard(List<List<InlineKeyboardButton>> values, string? backCommand=null)
+        {
+            if(backCommand.IsNullOrEmpty())
+            {
+                values.Add(new List<InlineKeyboardButton> { InlineKeyboardButton.WithCallbackData("< назад", "startMenu") });
+            }
+            else
+            {
+                values.Add(new List<InlineKeyboardButton> {  InlineKeyboardButton.WithCallbackData("< назад", backCommand), 
+                                                                InlineKeyboardButton.WithCallbackData("меню", "startMenu") });
+            }
+            return new InlineKeyboardMarkup(values);
+        }
+        static async Task ShowError(long chatId, CancellationToken token, int messageId, string errorText = "что-то пошло не так", string? backCommand = null)
+        {
+            var inlineKeyboard = CreateInlineKeyboard(new List<List<InlineKeyboardButton>>(), backCommand);
+            await _botClient.EditMessageTextAsync(chatId, messageId, errorText,
+            replyMarkup: inlineKeyboard, cancellationToken: token);
+            return;
+        }
         static async Task ShowComponentsIdsList(long chatId, CancellationToken token, int messageId)
         {
-            var buttons = new List<List<InlineKeyboardButton>>();
-            foreach (var procurement in GET.View.ProcurementsBy("Выигран 2ч", GET.KindOf.ProcurementState))
-            {
-                var buttonRow = new List<InlineKeyboardButton>
-            {
-                InlineKeyboardButton.WithCallbackData(procurement.Id.ToString(), $"getComponent_{procurement.Id}")
-            };
-                buttons.Add(buttonRow);
-            }
-            buttons.Add(new List<InlineKeyboardButton>
-            {
-                InlineKeyboardButton.WithCallbackData("< назад", "startMenu")
-            });
+            var buttons = new List<List<InlineKeyboardButton>>(GET.View.ProcurementsBy("Выигран 2ч", GET.KindOf.ProcurementState).Select(
+                procurement => new List<InlineKeyboardButton>
+                {
+                    InlineKeyboardButton.WithCallbackData(procurement.Id.ToString(), $"getComponent_{procurement.Id}")
+                }));
             if (buttons.Count <= 1)
             {
                 await ShowError(chatId, token, messageId, "Список тендеров со статусом \"Выигран 2ч\" пуст");
                 return;
             }
+            var inlineKeyboard = CreateInlineKeyboard(buttons);
             await _botClient.EditMessageTextAsync(chatId, messageId, "Выберите тендер:",
             replyMarkup: new InlineKeyboardMarkup(buttons), cancellationToken: token);
             return;
         }
         static async Task ShowComponentsByProcurementId(long chatId, int userProcurementId, CancellationToken token, int messageId)
         {
-            var inlineKeyboard = new InlineKeyboardMarkup(new[]
-            {
-            new[] { InlineKeyboardButton.WithCallbackData("< назад", "startMenu_GetComponents") },
-            new[] { InlineKeyboardButton.WithCallbackData("меню", "startMenu") }
-            });
+            var inlineKeyboard = CreateInlineKeyboard(new List<List<InlineKeyboardButton>>(), "startMenu_GetComponents");
             try
             {
                 var components = GetComponentsWithHeaders(userProcurementId);
-                if (components.IsNullOrEmpty()) await ShowError(chatId, token, messageId, "Компоненты тендера не найдены");
+                if (components.IsNullOrEmpty()) await ShowError(chatId, token, messageId, "Компоненты тендера не найдены", "startMenu_GetComponents");
                 else
                 {
                     List<Comment>? comments = GetTechnicalComments(userProcurementId);
@@ -119,7 +128,7 @@ namespace UstNnBot
             catch (Exception exception)
             {
                 Console.WriteLine($"{exception.Message} {exception.TargetSite}");
-                await ShowError(chatId, token, messageId, "Ошибка валидации тендера");
+                await ShowError(chatId, token, messageId, "Ошибка валидации тендера", "startMenu_GetComponents");
             }
             return;
         }
@@ -136,21 +145,14 @@ namespace UstNnBot
                 var procurementsText = ProcurementsToString(procurementsWithEmployees);
                 var buttons = new List<List<InlineKeyboardButton>>();
                 if (forAssign)
-                {
-                    foreach ((var procurement,_) in procurementsWithEmployees)
+                {                
+                    buttons = new List<List<InlineKeyboardButton>>(procurementsWithEmployees.Select(
+                    procurement => new List<InlineKeyboardButton>
                     {
-                        var buttonRow = new List<InlineKeyboardButton>
-                    {
-                        InlineKeyboardButton.WithCallbackData(procurement.Id.ToString(), $"assignProcurement_{procurement.Id}")
-                    };
-                        buttons.Add(buttonRow);
-                    }
+                       InlineKeyboardButton.WithCallbackData(procurement.Key.Id.ToString(), $"assignProcurement_{procurement.Key.Id}")
+                    }));
                 }
-                buttons.Add(new List<InlineKeyboardButton>
-                {
-                    InlineKeyboardButton.WithCallbackData("< назад", "startMenu")
-                });
-                await _botClient.EditMessageTextAsync(chatId, messageId, procurementsText, replyMarkup: new InlineKeyboardMarkup(buttons),
+                await _botClient.EditMessageTextAsync(chatId, messageId, procurementsText, replyMarkup: CreateInlineKeyboard(buttons),
                     cancellationToken: token, parseMode: ParseMode.Markdown);
             }
             catch (Exception exception)
@@ -171,13 +173,8 @@ namespace UstNnBot
                     return;
                 }
                 var procurementsText = ProcurementsToString(userProcurements);
-                var inlineKeyboard = new InlineKeyboardMarkup(new List<List<InlineKeyboardButton>>
-                {new List<InlineKeyboardButton>
-                    {
-                        InlineKeyboardButton.WithCallbackData("< назад", "startMenu")
-                    }
-                });
-                await _botClient.EditMessageTextAsync(chatId, message.MessageId, procurementsText, replyMarkup: inlineKeyboard,
+                await _botClient.EditMessageTextAsync(chatId, message.MessageId, procurementsText, 
+                    replyMarkup: CreateInlineKeyboard(new List<List<InlineKeyboardButton>>()),
                     cancellationToken: token, parseMode: ParseMode.Markdown);
             }
             catch (Exception exception)
@@ -189,16 +186,12 @@ namespace UstNnBot
         }
         static async Task AssignAndShowComponents(long chatId, int userProcurementId, CancellationToken token, int messageId)
         {
-            var inlineKeyboard = new InlineKeyboardMarkup(new[]
-            {
-            new[] { InlineKeyboardButton.WithCallbackData("< назад", "startMenu_AssignProcurement"),  
-                InlineKeyboardButton.WithCallbackData("ДА", $"confirmationOfAssign_{userProcurementId}") },
-            new[] { InlineKeyboardButton.WithCallbackData("меню", "startMenu") }
-            });
+            var inlineKeyboard = CreateInlineKeyboard(new List<List<InlineKeyboardButton>> { new List<InlineKeyboardButton> {
+                InlineKeyboardButton.WithCallbackData("ДА", $"confirmationOfAssign_{userProcurementId}") } }, "startMenu_AssignProcurement");
             try
             {
                 var components = GetComponentsWithHeaders(userProcurementId);
-                if (components.IsNullOrEmpty()) await ShowError(chatId, token, messageId, "Компоненты тендера не найдены");
+                if (components.IsNullOrEmpty()) await ShowError(chatId, token, messageId, "Компоненты тендера не найдены", "startMenu_AssignProcurement");
                 else
                 {
                     List<Comment>? comments = GetTechnicalComments(userProcurementId);
@@ -211,48 +204,29 @@ namespace UstNnBot
             catch (Exception exception)
             {
                 Console.WriteLine($"{exception.Message} {exception.TargetSite}");
-                await ShowError(chatId, token, messageId, "Ошибка валидации тендера");
+                await ShowError(chatId, token, messageId, "Ошибка валидации тендера", "startMenu_AssignProcurement");
             }
             return;
         }
         static async Task AssignProcurement(long chatId, int userProcurementId, CancellationToken token,  Message message)
         {
-            var inlineKeyboard = new InlineKeyboardMarkup(new List<List<InlineKeyboardButton>>
-            {new List<InlineKeyboardButton>
-            {
-                InlineKeyboardButton.WithCallbackData("< назад", $"assignProcurement_{userProcurementId}"),
-                InlineKeyboardButton.WithCallbackData("меню", "startMenu"),
-            }
-            });
             try
             {
                 string username = message.Chat.Username;
                 if(!GET.View.ProcurementsEmployeesByProcurement(userProcurementId).IsNullOrEmpty()
                     && GET.View.ProcurementsEmployeesByProcurement(userProcurementId).Any(pe => pe.Employee.UserName == username)){
-                    await ShowError(chatId, token, message.MessageId, "Вы уже работаете над этим тендером");
+                    await ShowError(chatId, token, message.MessageId, "Вы уже работаете над этим тендером", $"assignProcurement_{userProcurementId}");
                     return;
                 }
                 AssignProcurement(username, userProcurementId);
                 await _botClient.EditMessageTextAsync(chatId, message.MessageId, $"Тендер {userProcurementId} успешно добавлен в ваш план",
-                replyMarkup: inlineKeyboard, cancellationToken: token);
+                    replyMarkup: CreateInlineKeyboard(new List<List<InlineKeyboardButton>>(), $"assignProcurement_{userProcurementId}"), cancellationToken: token);
             }
             catch (Exception exception)
             {
                 Console.WriteLine($"{exception.Message} {exception.TargetSite}");
-                await ShowError(chatId, token, message.MessageId, "Ошибка назначения тендера");
+                await ShowError(chatId, token, message.MessageId, "Ошибка назначения тендера", $"assignProcurement_{userProcurementId}");
             }
-            return;
-        }
-        static async Task ShowError(long chatId, CancellationToken token, int messageId, string errorText = "что-то пошло не так")
-        {
-            var inlineKeyboard = new InlineKeyboardMarkup(new List<List<InlineKeyboardButton>>
-            {new List<InlineKeyboardButton>
-            {
-                InlineKeyboardButton.WithCallbackData("меню", "startMenu")
-            }
-            });
-            await _botClient.EditMessageTextAsync(chatId, messageId, errorText,
-            replyMarkup: inlineKeyboard, cancellationToken: token);
             return;
         }
         static async Task CallbackQuery(ITelegramBotClient client, CallbackQuery callbackQuery, CancellationToken token)
@@ -310,10 +284,10 @@ namespace UstNnBot
             throw new NotImplementedException();
         }
         //DATA
-        internal static List<string>? AllowedUsers => (from employee in GET.View.Employees()
+        internal static HashSet<string>? AllowedUsers => (from employee in GET.View.Employees()
                                                        where employee.IsAvailable!
                                                        && employee.Position.Kind == "Инженер отдела производства"
-                                                       select employee.UserName).ToList();
+                                                       select employee.UserName).ToHashSet();
         //METHODS
         internal static Dictionary<ComponentCalculation, List<ComponentCalculation>>? GetComponentsWithHeaders(int procurementId)
         {
@@ -326,10 +300,12 @@ namespace UstNnBot
         }
         internal static List<Comment>? GetTechnicalComments(int procurementId) => GET.View.CommentsBy(procurementId, isTechical: true);
         //this method is a wrapper, it calls a method StatesOfAllComponentsAreMatch with argument that is already tested in DatabaseLibrary
+        //[not optimized]
         static List<Procurement>? GetGeneralProcurements() =>
             (from procurement in GET.View.ProcurementsBy("Выигран 2ч", GET.KindOf.ProcurementState)
              where StatesOfAllComponentsAreMatch(GET.View.ComponentCalculationsBy(procurement.Id), "В резерве")
              select procurement).ToList();
+        //[not optimized]
         internal static bool StatesOfAllComponentsAreMatch(List<ComponentCalculation>? components, string componentState)
         {
             try
@@ -346,12 +322,14 @@ namespace UstNnBot
             catch { return false; }
         }
         //wrapper of AllowedUsersInProcurementsEmployeeList
+        //[not optimized]
         internal static Dictionary<Procurement, List<int>?> GetGeneralPlanWithEmployeesIds(List<Procurement>? procurements = null)
             => (procurements ?? GetGeneralProcurements())!.ToDictionary(
                 procurement => procurement,
                 procurement => AllowedUsersInProcurementsEmployeeList(GET.View.ProcurementsEmployeesByProcurement(procurement.Id)).ToList()
                 )!;
-        internal static List<int>? AllowedUsersInProcurementsEmployeeList(List<ProcurementsEmployee>? procurementsEmployees, List<string>? allowedUser = null)
+        //[not optimized]
+        internal static List<int>? AllowedUsersInProcurementsEmployeeList(List<ProcurementsEmployee>? procurementsEmployees, HashSet<string>? allowedUser = null)
         {
             try
             {
@@ -361,12 +339,14 @@ namespace UstNnBot
             }
             catch { return null; }
         }
+        //[not optimized]
         internal static List<Procurement>? GetIndividualPlanByUserEmployeeId(int userEmployeeId, List<Procurement>? procurements = null, List<ProcurementsEmployee>? procurementsEmployees = null)
             => (from procurement in procurements ?? GetGeneralProcurements()
                 where (from pe in procurementsEmployees ?? GET.View.ProcurementsEmployeesByProcurement(procurement.Id)
                        where pe.ProcurementId == procurement.Id
                        select pe.EmployeeId).Any(employeeId => employeeId == userEmployeeId)
                 select procurement).ToList();
+        //[not optimized]
         static void AssignProcurement(string username, int procurementId)
         {
             ProcurementsEmployee procurementsEmployee = new ProcurementsEmployee
