@@ -8,6 +8,7 @@ using DatabaseLibrary.Entities.Actions;
 using Microsoft.IdentityModel.Tokens;
 using System.Runtime.CompilerServices;
 using DatabaseLibrary.Entities.EmployeeMuchToMany;
+using System.Diagnostics;
 
 [assembly: InternalsVisibleTo("UstNnBot.test")]
 namespace UstNnBot
@@ -19,6 +20,9 @@ namespace UstNnBot
         {
             _botClient = new TelegramBotClient(token);
             _botClient.StartReceiving(Update, Error);
+            Trace.Listeners.Add(new TextWriterTraceListener(Console.Out));
+            Trace.Listeners.Add(new TextWriterTraceListener("bot.log"));
+            Trace.AutoFlush = true;
         }
         //BOT INTERFACE
         static async Task Update(ITelegramBotClient client, Telegram.Bot.Types.Update update, CancellationToken token)
@@ -52,23 +56,34 @@ namespace UstNnBot
         }
         static async Task SendMessage(ITelegramBotClient client, Message message, CancellationToken token)
         {
-            if (!AllowedUsers.Contains(message.Chat.Username))
+            try
             {
-                await client.SendTextMessageAsync(message.Chat.Id, "Бот принимает запросы только от сотрудников организации");
-                Console.WriteLine($"user {message.Chat.Username} is not allowed at {message.Date.ToLocalTime()}");
-                return;
-            }
-            if (message.Text != null)
-            {
-                Console.WriteLine($"user {message.Chat.Username} {message.Date.ToLocalTime()} | message: {message.Text}");
-                if (message.Text == "/start" || message.Text == "/menu")
+                if (!AllowedUsers.Contains(message.Chat.Username))
                 {
-                    await ShowMainMenu(message.Chat.Id, token);
+                    await client.SendTextMessageAsync(message.Chat.Id, "Бот принимает запросы только от сотрудников организации");
+                    Trace.WriteLine($"user {message.Chat.Username} is not allowed at {message.Date.ToLocalTime()}");
+                    return;
+                }
+                if (message.Text != null)
+                {
+                    Trace.WriteLine($"user {message.Chat.Username} {message.Date.ToLocalTime()} | message: {message.Text}");
+                    if (message.Text == "/start" || message.Text == "/menu")
+                    {
+                        await ShowMainMenu(message.Chat.Id, token);
+                    }
+                    else
+                    {
+                        await client.SendTextMessageAsync(message.Chat.Id, "Команды не найдено. Для просмотра действий бота используйте /menu");
+                    }
                 }
                 else
                 {
-                    await client.SendTextMessageAsync(message.Chat.Id, "Команды не найдено. Для просмотра дейсnвий бота используйте /menu");
+                    await client.SendTextMessageAsync(message.Chat.Id, "Что-то пошло не так, повторите попытку позже");
                 }
+            }
+            catch(Exception exception)
+            {
+                Trace.WriteLine($"exception {exception.Message} was thrown at {message.Date.ToLocalTime()} for user {message.Chat.Username}");
             }
             return;
         }
@@ -126,7 +141,7 @@ namespace UstNnBot
             }
             catch (Exception exception)
             {
-                Console.WriteLine($"{exception.Message} {exception.TargetSite}");
+                Trace.WriteLine($"{exception.Message} {exception.TargetSite}");
                 await ShowError(chatId, token, messageId, "Ошибка валидации тендера", "startMenu_GetComponents");
             }
             return;
@@ -156,7 +171,7 @@ namespace UstNnBot
             }
             catch (Exception exception)
             {
-                Console.WriteLine($"{exception.Message} {exception.TargetSite}");
+                Trace.WriteLine($"{exception.Message} {exception.TargetSite}");
                 await ShowError(chatId, token, messageId, "Ошибка определения тендеров");
             }
             return;
@@ -178,7 +193,7 @@ namespace UstNnBot
             }
             catch (Exception exception)
             {
-                Console.WriteLine($"{exception.Message} {exception.TargetSite}");
+                Trace.WriteLine($"{exception.Message} {exception.TargetSite}");
                 await ShowError(chatId, token, message.MessageId, "Ошибка определения тендеров");
             }
             return;
@@ -202,7 +217,7 @@ namespace UstNnBot
             }
             catch (Exception exception)
             {
-                Console.WriteLine($"{exception.Message} {exception.TargetSite}");
+                Trace.WriteLine($"{exception.Message} {exception.TargetSite}");
                 await ShowError(chatId, token, messageId, "Ошибка валидации тендера", "startMenu_AssignProcurement");
             }
             return;
@@ -223,7 +238,7 @@ namespace UstNnBot
             }
             catch (Exception exception)
             {
-                Console.WriteLine($"{exception.Message} {exception.TargetSite}");
+                Trace.WriteLine($"{exception.Message} {exception.TargetSite}");
                 await ShowError(chatId, token, message.MessageId, "Ошибка назначения тендера", $"assignProcurement_{userProcurementId}");
             }
             return;
@@ -231,7 +246,7 @@ namespace UstNnBot
         static async Task CallbackQuery(ITelegramBotClient client, CallbackQuery callbackQuery, CancellationToken token)
         {
             var message = callbackQuery.Message;
-            Console.WriteLine($"user {message.Chat.Username} {message.Date.ToLocalTime()} | callback query: {callbackQuery.Data}");
+            Trace.WriteLine($"user {message.Chat.Username} {message.Date.ToLocalTime()} | callback query: {callbackQuery.Data}");
             if (callbackQuery.Data == "startMenu")
             {
                 await ShowMainMenu(message.Chat.Id, token, message.MessageId);
