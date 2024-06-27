@@ -1,8 +1,6 @@
-﻿using DatabaseLibrary.Entities.Actions;
-using DatabaseLibrary.Entities.ComponentCalculationProperties;
+﻿using DatabaseLibrary.Entities.ComponentCalculationProperties;
 using DatabaseLibrary.Entities.EmployeeMuchToMany;
 using DatabaseLibrary.Queries;
-using Telegram.Bot.Types;
 
 namespace UstNnBot.test
 {
@@ -110,7 +108,7 @@ namespace UstNnBot.test
                 new ProcurementsEmployee { Employee = new Employee { UserName = "catInTeapot" }, EmployeeId = 1 },
                 new ProcurementsEmployee { Employee = new Employee { UserName = "clownFish"   }, EmployeeId = 2 }
             };
-            var allowedUsers = new List<string> { "catInTeapot" };
+            var allowedUsers = new HashSet<string> { "catInTeapot" };
             var result = UstBot.AllowedUsersInProcurementsEmployeeList(procurementsEmployees, allowedUsers);
             CollectionAssert.AreEqual(new List<int> { 1 }, result);
         }
@@ -122,7 +120,7 @@ namespace UstNnBot.test
                 new ProcurementsEmployee { Employee = new Employee { UserName = "catInTeapot" }, EmployeeId = 1 },
                 new ProcurementsEmployee { Employee = new Employee { UserName = "clownFish"   }, EmployeeId = 2 }
             };
-            var allowedUsers = new List<string> { "denZel" };
+            var allowedUsers = new HashSet<string> { "denZel" };
             var result = UstBot.AllowedUsersInProcurementsEmployeeList(procurementsEmployees, allowedUsers);
             Assert.AreEqual(0, result.Count);
         }
@@ -130,7 +128,7 @@ namespace UstNnBot.test
         public void AllowedUsersInProcurementsEmployeeList_ProcurementsEmployeesListIsNull_ReturnsNull()
         {
             List<ProcurementsEmployee>? procurementsEmployees = null;
-            var allowedUsers = new List<string> { "catInTeapot" };
+            var allowedUsers = new HashSet<string> { "catInTeapot" };
             var result = UstBot.AllowedUsersInProcurementsEmployeeList(procurementsEmployees, allowedUsers);
             Assert.IsNull(result);
         }
@@ -138,19 +136,83 @@ namespace UstNnBot.test
         public void AllowedUsersInProcurementsEmployeeList_ProcurementsEmployeesListIsEmpty_ReturnsEmptyList()
         {
             var procurementsEmployees = new List<ProcurementsEmployee>();
-            var allowedUsers = new List<string> { "catInTeapot" };
+            var allowedUsers = new HashSet<string> { "catInTeapot" };
             var result = UstBot.AllowedUsersInProcurementsEmployeeList(procurementsEmployees, allowedUsers);
             Assert.AreEqual(0, result.Count);
         }
-        /*
-            SomeProcurementsToUser
-            NoProcurementsToUser
-            UserIdIsNull
-            UserIdDoesNotExist
-            ProcurementsListIsNull
-            ProcurementsListIsEmpty
-            ProcurementsEmployeesListIsNull
-            ProcurementsEmployeesListIsEmpty
-        */
+        [TestMethod]
+        public void GetIndividualPlanByUserEmployeeId_SomeProcurementsToUser_ReturnsEmployeePlan()
+        {
+            int employeeId = 1;
+            var procurements = new List<int> { 1, 2, 3, 4 };
+            var procurementsEmployee = new List<ProcurementsEmployee> {
+            new ProcurementsEmployee { EmployeeId = 1, ProcurementId =1 },
+            new ProcurementsEmployee { EmployeeId = 1, ProcurementId =2 },
+            new ProcurementsEmployee { EmployeeId = 2, ProcurementId =3 },
+            new ProcurementsEmployee { EmployeeId = 2, ProcurementId =4 }
+            };
+            var result = UstBot.GetIndividualPlanByUserEmployeeId(employeeId, procurements, procurementsEmployee);
+            CollectionAssert.AreEqual(new List<int> { 1, 2 }, result);
+        }
+        [TestMethod]
+        public void GetIndividualPlanByUserEmployeeId_NoProcurementsToUser_ReturnsEmptyPlan()
+        {
+            int employeeId = 1;
+            var procurements = new List<int> { 1, 2, 3, 4 };
+            var procurementsEmployee = new List<ProcurementsEmployee> {
+            new ProcurementsEmployee { EmployeeId = 2, ProcurementId =1 },
+            new ProcurementsEmployee { EmployeeId = 2, ProcurementId =2 },
+            new ProcurementsEmployee { EmployeeId = 2, ProcurementId =3 },
+            new ProcurementsEmployee { EmployeeId = 2, ProcurementId =4 }
+            };
+            var result = UstBot.GetIndividualPlanByUserEmployeeId(employeeId, procurements, procurementsEmployee);
+            CollectionAssert.AreEqual(new List<int>(), result);
+        }
+        [TestMethod]
+        public void GetIndividualPlanByUserEmployeeId_ProcurementsListIsEmpty_ReturnsEmptyPlan()
+        {
+            int employeeId = 1;
+            var procurements = new List<int> ();
+            var procurementsEmployee = new List<ProcurementsEmployee> {
+            new ProcurementsEmployee { EmployeeId = 2, ProcurementId =1 },
+            new ProcurementsEmployee { EmployeeId = 2, ProcurementId =2 },
+            new ProcurementsEmployee { EmployeeId = 2, ProcurementId =3 },
+            new ProcurementsEmployee { EmployeeId = 2, ProcurementId =4 }
+            };
+            var result = UstBot.GetIndividualPlanByUserEmployeeId(employeeId, procurements, procurementsEmployee);
+            CollectionAssert.AreEqual(new List<int>(), result);
+        }
+        [TestMethod]
+        public void GetIndividualPlanByUserEmployeeId_ProcurementsListIsNull_ReturnsEmptyPlan()
+        {
+            int employeeId = 1;
+            List<int> procurements = null;
+            var procurementsEmployee = new List<ProcurementsEmployee> {
+            new ProcurementsEmployee { EmployeeId = 2, ProcurementId =1 },
+            new ProcurementsEmployee { EmployeeId = 2, ProcurementId =2 },
+            new ProcurementsEmployee { EmployeeId = 2, ProcurementId =3 },
+            new ProcurementsEmployee { EmployeeId = 2, ProcurementId =4 }
+            };
+            var result = UstBot.GetIndividualPlanByUserEmployeeId(employeeId, procurements, procurementsEmployee);
+            CollectionAssert.AreEqual(new List<int>(), result);
+        }
+        [TestMethod]
+        public void GetIndividualPlanByUserEmployeeId_ProcurementsEmployeeListIsEmpty_ReturnsEmptyPlan()
+        {
+            int employeeId = 1;
+            var procurements = new List<int> { 1, 2, 3, 4 };
+            var procurementsEmployee = new List<ProcurementsEmployee>();
+            var result = UstBot.GetIndividualPlanByUserEmployeeId(employeeId, procurements, procurementsEmployee);
+            CollectionAssert.AreEqual(new List<int>(), result);
+        }
+        [TestMethod]
+        public void GetIndividualPlanByUserEmployeeId_ProcurementsEmployeeListIsNull_ReturnsEmptyPlan()
+        {
+            int employeeId = 1;
+            var procurements = new List<int> { 1, 2, 3, 4 };
+            List<ProcurementsEmployee>? procurementsEmployee = null;
+            var result = UstBot.GetIndividualPlanByUserEmployeeId(employeeId, procurements, procurementsEmployee);
+            CollectionAssert.AreEqual(new List<int>(), result);
+        }
     }
 }
