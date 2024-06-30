@@ -81,21 +81,21 @@ namespace UstNnBot
                     await client.SendTextMessageAsync(message.Chat.Id, "Что-то пошло не так, повторите попытку позже");
                 }
             }
-            catch(Exception exception)
+            catch (Exception exception)
             {
                 Trace.WriteLine($"exception {exception.Message} was thrown at {message.Date.ToLocalTime()} for user {message.Chat.Username}");
             }
             return;
         }
-        private static InlineKeyboardMarkup CreateInlineKeyboard(List<List<InlineKeyboardButton>> values, string? backCommand=null)
+        private static InlineKeyboardMarkup CreateInlineKeyboard(List<List<InlineKeyboardButton>> values, string? backCommand = null)
         {
-            if(backCommand.IsNullOrEmpty())
+            if (backCommand.IsNullOrEmpty())
             {
                 values.Add(new List<InlineKeyboardButton> { InlineKeyboardButton.WithCallbackData("< назад", "startMenu") });
             }
             else
             {
-                values.Add(new List<InlineKeyboardButton> {  InlineKeyboardButton.WithCallbackData("< назад", backCommand), 
+                values.Add(new List<InlineKeyboardButton> {  InlineKeyboardButton.WithCallbackData("< назад", backCommand),
                                                                 InlineKeyboardButton.WithCallbackData("меню", "startMenu") });
             }
             return new InlineKeyboardMarkup(values);
@@ -109,6 +109,7 @@ namespace UstNnBot
         }
         static async Task ShowComponentsIdsList(long chatId, CancellationToken token, int messageId)
         {
+            Stopwatch stopwatch = Stopwatch.StartNew();
             var buttons = new List<List<InlineKeyboardButton>>(GET.View.ProcurementsBy("Выигран 2ч", GET.KindOf.ProcurementState).Select(
                 procurement => new List<InlineKeyboardButton>
                 {
@@ -122,6 +123,8 @@ namespace UstNnBot
             var inlineKeyboard = CreateInlineKeyboard(buttons);
             await _botClient.EditMessageTextAsync(chatId, messageId, "Выберите тендер:",
             replyMarkup: new InlineKeyboardMarkup(buttons), cancellationToken: token);
+            stopwatch.Stop();
+            Trace.WriteLine($"ShowComponentsIdsList executed in {stopwatch.ElapsedMilliseconds} ms");
             return;
         }
         static async Task ShowComponentsByProcurementId(long chatId, int userProcurementId, CancellationToken token, int messageId)
@@ -129,6 +132,7 @@ namespace UstNnBot
             var inlineKeyboard = CreateInlineKeyboard(new List<List<InlineKeyboardButton>>(), "startMenu_GetComponents");
             try
             {
+                Stopwatch stopwatch = Stopwatch.StartNew();
                 var components = GetComponentsWithHeaders(userProcurementId);
                 if (components.IsNullOrEmpty()) await ShowError(chatId, token, messageId, "Компоненты тендера не найдены", "startMenu_GetComponents");
                 else
@@ -138,6 +142,8 @@ namespace UstNnBot
                     await _botClient.EditMessageTextAsync(chatId, messageId, componentsMessage, replyMarkup: inlineKeyboard,
                         cancellationToken: token, parseMode: ParseMode.Markdown);
                 }
+                stopwatch.Stop();
+                Trace.WriteLine($"ShowComponentsByProcurementId executed in {stopwatch.ElapsedMilliseconds} ms");
             }
             catch (Exception exception)
             {
@@ -146,20 +152,24 @@ namespace UstNnBot
             }
             return;
         }
-        static async Task ShowGeneralPlan(long chatId, CancellationToken token, int messageId, bool forAssign=false)
+        static async Task ShowGeneralPlan(long chatId, CancellationToken token, int messageId, bool forAssign = false)
         {
             try
-            {            
+            {
+                Stopwatch stopwatch = Stopwatch.StartNew();
                 var procurementsWithEmployees = GetGeneralPlanWithEmployeesIds();
                 if (procurementsWithEmployees.IsNullOrEmpty())
                 {
                     await ShowError(chatId, token, messageId, "Общий план пуст");
+                    Trace.WriteLine($"ShowGeneralPlan executed in {stopwatch.ElapsedMilliseconds} ms");
+                    stopwatch.Stop();
+
                     return;
                 }
                 var procurementsText = ProcurementsToString(procurementsWithEmployees);
                 var buttons = new List<List<InlineKeyboardButton>>();
                 if (forAssign)
-                {                
+                {
                     buttons = new List<List<InlineKeyboardButton>>(procurementsWithEmployees.Select(
                     procurement => new List<InlineKeyboardButton>
                     {
@@ -168,6 +178,8 @@ namespace UstNnBot
                 }
                 await _botClient.EditMessageTextAsync(chatId, messageId, procurementsText, replyMarkup: CreateInlineKeyboard(buttons),
                     cancellationToken: token, parseMode: ParseMode.Markdown);
+                stopwatch.Stop();
+                Trace.WriteLine($"ShowGeneralPlan executed in {stopwatch.ElapsedMilliseconds} ms");
             }
             catch (Exception exception)
             {
@@ -178,18 +190,23 @@ namespace UstNnBot
         }
         static async Task ShowIndividualPlan(long chatId, CancellationToken token, Message message)
         {
-            try 
-            { 
+            try
+            {
+                Stopwatch stopwatch = Stopwatch.StartNew();
                 var userProcurements = GetIndividualPlanByUserEmployeeId(GET.View.Employees().First(employee => employee.UserName == message.Chat.Username).Id);
                 if (userProcurements.IsNullOrEmpty())
                 {
                     await ShowError(chatId, token, message.MessageId, "Ваш план пуст");
+                    stopwatch.Stop();
+                    Trace.WriteLine($"ShowIndividualPlan executed in {stopwatch.ElapsedMilliseconds} ms");
                     return;
                 }
                 var procurementsText = ProcurementsToString(userProcurements);
-                await _botClient.EditMessageTextAsync(chatId, message.MessageId, procurementsText, 
+                await _botClient.EditMessageTextAsync(chatId, message.MessageId, procurementsText,
                     replyMarkup: CreateInlineKeyboard(new List<List<InlineKeyboardButton>>()),
                     cancellationToken: token, parseMode: ParseMode.Markdown);
+                stopwatch.Stop();
+                Trace.WriteLine($"ShowIndividualPlan executed in {stopwatch.ElapsedMilliseconds} ms");
             }
             catch (Exception exception)
             {
@@ -222,13 +239,14 @@ namespace UstNnBot
             }
             return;
         }
-        static async Task AssignProcurement(long chatId, int userProcurementId, CancellationToken token,  Message message)
+        static async Task AssignProcurement(long chatId, int userProcurementId, CancellationToken token, Message message)
         {
             try
             {
                 string username = message.Chat.Username;
-                if(!GET.View.ProcurementsEmployeesByProcurement(userProcurementId).IsNullOrEmpty()
-                    && GET.View.ProcurementsEmployeesByProcurement(userProcurementId).Any(pe => pe.Employee.UserName == username)){
+                if (!GET.View.ProcurementsEmployeesByProcurement(userProcurementId).IsNullOrEmpty()
+                    && GET.View.ProcurementsEmployeesByProcurement(userProcurementId).Any(pe => pe.Employee.UserName == username))
+                {
                     await ShowError(chatId, token, message.MessageId, "Вы уже работаете над этим тендером", $"assignProcurement_{userProcurementId}");
                     return;
                 }
@@ -245,6 +263,7 @@ namespace UstNnBot
         }
         static async Task CallbackQuery(ITelegramBotClient client, CallbackQuery callbackQuery, CancellationToken token)
         {
+            Stopwatch stopwatch = Stopwatch.StartNew();
             var message = callbackQuery.Message;
             Trace.WriteLine($"user {message.Chat.Username} {message.Date.ToLocalTime()} | callback query: {callbackQuery.Data}");
             if (callbackQuery.Data == "startMenu")
@@ -267,7 +286,7 @@ namespace UstNnBot
             {
                 await ShowGeneralPlan(message.Chat.Id, token, message.MessageId);
                 await _botClient.AnswerCallbackQueryAsync(callbackQuery.Id, cancellationToken: token);
-            }            
+            }
             else if (callbackQuery.Data == "startMenu_GetIndividualPlan")
             {
                 int employeeId = GET.View.Employees().First(employee => employee.UserName == message.Chat.Username).Id;
@@ -276,7 +295,7 @@ namespace UstNnBot
             }
             else if (callbackQuery.Data == "startMenu_AssignProcurement")
             {
-                await ShowGeneralPlan(message.Chat.Id, token, message.MessageId, forAssign:true);
+                await ShowGeneralPlan(message.Chat.Id, token, message.MessageId, forAssign: true);
                 await _botClient.AnswerCallbackQueryAsync(callbackQuery.Id, cancellationToken: token);
             }
             else if (callbackQuery.Data.StartsWith("assignProcurement_"))
@@ -291,6 +310,8 @@ namespace UstNnBot
                 await AssignProcurement(message.Chat.Id, userProcurementId, token, message);
                 await _botClient.AnswerCallbackQueryAsync(callbackQuery.Id, cancellationToken: token);
             }
+            stopwatch.Stop();
+            Trace.WriteLine($"General menu switched in {stopwatch.ElapsedMilliseconds} ms");
             return;
         }
         static Task Error(ITelegramBotClient client, Exception exception, CancellationToken token)
@@ -299,9 +320,9 @@ namespace UstNnBot
         }
         //DATA
         internal static HashSet<string>? AllowedUsers => (from employee in GET.View.Employees()
-                                                       where employee.IsAvailable!
-                                                       && employee.Position.Kind == "Инженер отдела производства"
-                                                       select employee.UserName).ToHashSet();
+                                                          where employee.IsAvailable!
+                                                          && employee.Position.Kind == "Инженер отдела производства"
+                                                          select employee.UserName).ToHashSet();
         //METHODS
         internal static Dictionary<ComponentCalculation, List<ComponentCalculation>>? GetComponentsWithHeaders(int procurementId)
         {
@@ -314,10 +335,17 @@ namespace UstNnBot
         }
         internal static List<Comment>? GetTechnicalComments(int procurementId) => GET.View.CommentsBy(procurementId, isTechical: true);
         //this method is a wrapper, it calls a method StatesOfAllComponentsAreMatch with argument that is already tested in DatabaseLibrary
-        static List<int>? GetGeneralProcurementsIds() =>
-            (from procurement in GET.View.ProcurementsBy("Выигран 2ч", GET.KindOf.ProcurementState)
-             where StatesOfAllComponentsAreMatch(GET.View.ComponentCalculationsBy(procurement.Id), "В резерве")
-             select procurement.Id).ToList();
+        static List<int>? GetGeneralProcurementsIds()
+        {
+            Stopwatch stopwatch = Stopwatch.StartNew();
+            var result = (from procurement in GET.View.ProcurementsBy("Выигран 2ч", GET.KindOf.ProcurementState)
+                          where StatesOfAllComponentsAreMatch(GET.View.ComponentCalculationsBy(procurement.Id), "В резерве")
+                          select procurement.Id).ToList();
+            stopwatch.Stop();
+            Trace.WriteLine($"GetGeneralProcurementsIds executed in {stopwatch.ElapsedMilliseconds} ms");
+            return result;
+        }
+
         internal static bool StatesOfAllComponentsAreMatch(List<ComponentCalculation>? components, string componentState)
         {
             try
@@ -335,26 +363,48 @@ namespace UstNnBot
         }
         //wrapper of AllowedUsersInProcurementsEmployeeList
         internal static Dictionary<int, List<int>?> GetGeneralPlanWithEmployeesIds(List<int>? procurements = null)
-            => (procurements ?? GetGeneralProcurementsIds())!.ToDictionary(
+        {
+            Stopwatch stopwatch = Stopwatch.StartNew();
+            var result = (procurements ?? GetGeneralProcurementsIds())!.ToDictionary(
                 procurement => procurement,
                 procurement => AllowedUsersInProcurementsEmployeeList(GET.View.ProcurementsEmployeesByProcurement(procurement))!.ToList()
                 )!;
+            stopwatch.Stop();
+            Trace.WriteLine($"GetGeneralPlanWithEmployeesIds executed in {stopwatch.ElapsedMilliseconds} ms");
+            return result;
+        }
         internal static List<int>? AllowedUsersInProcurementsEmployeeList(List<ProcurementsEmployee>? procurementsEmployees, HashSet<string>? allowedUser = null)
         {
+            Stopwatch stopwatch = Stopwatch.StartNew();
             try
             {
-                return (from pe in procurementsEmployees
-                        where (allowedUser ?? AllowedUsers).Contains(pe.Employee.UserName)
-                        select pe.EmployeeId).ToList();
+                var result = (from pe in procurementsEmployees
+                              where (allowedUser ?? AllowedUsers).Contains(pe.Employee.UserName)
+                              select pe.EmployeeId).ToList();
+                stopwatch.Stop();
+                Trace.WriteLine($"AllowedUsersInProcurementsEmployeeList executed in {stopwatch.ElapsedMilliseconds} ms");
+                return result;
             }
-            catch { return null; }
+            catch
+            {
+                stopwatch.Stop();
+                Trace.WriteLine($"AllowedUsersInProcurementsEmployeeList executed in {stopwatch.ElapsedMilliseconds} ms");
+                return null;
+            }
         }
         internal static List<int>? GetIndividualPlanByUserEmployeeId(int userEmployeeId, List<int>? procurements = null, List<ProcurementsEmployee>? procurementsEmployees = null)
-            => (from procurement in procurements ?? GetGeneralProcurementsIds()
-                where (from pe in procurementsEmployees ?? GET.View.ProcurementsEmployeesByProcurement(procurement)
-                       where pe.ProcurementId == procurement
-                       select pe.EmployeeId).Any(employeeId => employeeId == userEmployeeId)
-                select procurement).ToList();
+        {
+            Stopwatch stopwatch = Stopwatch.StartNew();
+            var result = (from procurement in procurements ?? GetGeneralProcurementsIds()
+                          where (from pe in procurementsEmployees ?? GET.View.ProcurementsEmployeesByProcurement(procurement)
+                                 where pe.ProcurementId == procurement
+                                 select pe.EmployeeId).Any(employeeId => employeeId == userEmployeeId)
+                          select procurement).ToList();
+            stopwatch.Stop();
+            Trace.WriteLine($"GetIndividualPlanByUserEmployeeId executed in {stopwatch.ElapsedMilliseconds} ms");
+            return result;
+        }
+
         static void AssignProcurement(string username, int procurementId)
         {
             ProcurementsEmployee procurementsEmployee = new ProcurementsEmployee
@@ -368,6 +418,7 @@ namespace UstNnBot
         //FORMMATING
         static string ComponentsToString(Dictionary<ComponentCalculation, List<ComponentCalculation>> components, List<Comment>? comments)
         {
+            Stopwatch stopwatch = Stopwatch.StartNew();
             string componentsStr = "";
             string assemblyMapsStr = "";
             foreach (var header in components.Keys)
@@ -381,19 +432,29 @@ namespace UstNnBot
             string resultText = $"*Компоненты тендера {components.First().Key.ProcurementId}*" + componentsStr;
             if (assemblyMapsStr != "") resultText += $"\n\n*Карта сборки*\n" + assemblyMapsStr;
             if (!comments.IsNullOrEmpty()) resultText += $"\n\n*Комменатрии*\n{string.Join("\n", comments.Select(comment => comment.Text))}";
+            stopwatch.Stop();
+            Trace.WriteLine($"ComponentsToString executed in {stopwatch.ElapsedMilliseconds} ms");
             return resultText;
         }
         static string ProcurementsToString(Dictionary<int, List<int>?> procurementsWithEmployeesIds)
         {
-            return string.Join("\n", procurementsWithEmployeesIds.Select(pe => $"*{pe.Key}*" + (pe.Value.IsNullOrEmpty() ? "" : $" \\[ взяли в работу: {pe.Value.Count} ]") + "\n"
+            Stopwatch stopwatch = Stopwatch.StartNew();
+            string result = string.Join("\n", procurementsWithEmployeesIds.Select(pe => $"*{pe.Key}*" + (pe.Value.IsNullOrEmpty() ? "" : $" \\[ взяли в работу: {pe.Value.Count} ]") + "\n"
             + string.Join("\n", GetComponentsWithHeaders(pe.Key).Keys.Select(component => component.ComponentHeaderType.Kind))
             ));
-        }      
+            stopwatch.Stop();
+            Trace.WriteLine($"ProcurementsToString executed in {stopwatch.ElapsedMilliseconds} ms");
+            return result;
+        }
         static string ProcurementsToString(List<int>? procurements)
         {
-            return string.Join("\n", procurements.Select(procurement => $"*{procurement}*\n"
+            Stopwatch stopwatch = Stopwatch.StartNew();
+            string result = string.Join("\n", procurements.Select(procurement => $"*{procurement}*\n"
             + string.Join("\n", GetComponentsWithHeaders(procurement).Keys.Select(component => component.ComponentHeaderType.Kind))
             ));
+            stopwatch.Stop();
+            Trace.WriteLine($"ProcurementsToString executed in {stopwatch.ElapsedMilliseconds} ms");
+            return result;
         }
     }
 }
